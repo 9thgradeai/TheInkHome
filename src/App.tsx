@@ -46,6 +46,7 @@ import { useAmbientAudio } from "./hooks/useAmbientAudio";
 import { useSeo } from "./hooks/useSeo";
 import { analytics } from "./lib/analytics";
 import { hydrateInteractions, persistInteractions } from "./lib/sync";
+import { optimizeImageUrl } from "./lib/images";
 
 export default function App() {
   // Initialize stories from local fallback for instant rendering on static hosts
@@ -713,7 +714,7 @@ export default function App() {
                            {/* Media Section */}
                            <div className="relative w-full h-32 sm:h-44 overflow-hidden border-b border-white/5">
                               <img
-                                src={story.cover || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80"}
+                                src={optimizeImageUrl(story.cover || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80", 720)}
                                 alt={story.title}
                                 referrerPolicy="no-referrer"
                                 width="400"

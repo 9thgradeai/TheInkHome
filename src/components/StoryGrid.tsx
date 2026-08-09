@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { Story } from "../types";
 import { ArrowUpRight, Heart, Bookmark } from "lucide-react";
 import { getLikesCount } from "../lib/interaction";
+import { optimizeImageUrl } from "../lib/images";
 import AvatarImage from "./AvatarImage";
 
 interface StoryGridProps {
@@ -95,7 +96,7 @@ export default function StoryGrid({
               {/* Media Section */}
               <div className="relative w-full h-32 sm:h-44 overflow-hidden border-b border-white/5">
                 <img
-                  src={story.cover || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80"}
+                  src={optimizeImageUrl(story.cover || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80", 720)}
                   alt={story.title}
                   referrerPolicy="no-referrer"
                   width="400"

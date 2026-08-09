@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { getLikesCount, getShareUrl } from "../lib/interaction";
 import { analytics } from "../lib/analytics";
+import { optimizeImageUrl, optimizeContentHtml } from "../lib/images";
 import AvatarImage from "./AvatarImage";
 import Subscribe from "./Subscribe";
 
@@ -264,7 +265,7 @@ export default function StoryModal({
             {/* Hero Cover Frame */}
             <div className="relative w-full h-[16rem] sm:h-[20rem] md:h-[25rem] overflow-hidden">
               <img
-                src={story.cover || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80"}
+                src={optimizeImageUrl(story.cover || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80", 1200)}
                 alt={story.title}
                 referrerPolicy="no-referrer"
                 width="1200"
@@ -459,7 +460,7 @@ export default function StoryModal({
                 style={{ fontSize: `${0.95 * fontScale}rem` }}
               >
                 {story.content ? (
-                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(story.content) }} />
+                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(optimizeContentHtml(story.content)) }} />
                 ) : (
                   <div className="space-y-4">
                     <p className="text-slate-300 leading-relaxed font-sans">{story.description}</p>

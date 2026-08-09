@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Story } from "../types";
 import { ChevronLeft, ChevronRight, ArrowUpRight, Flame, Layers, Heart, Bookmark } from "lucide-react";
 import { getLikesCount } from "../lib/interaction";
+import { optimizeImageUrl } from "../lib/images";
 import AvatarImage from "./AvatarImage";
 
 interface Carousel3DProps {
@@ -295,7 +296,7 @@ export default function Carousel3D({
                 {/* Top: Image Section */}
                 <div className="relative w-full h-28 sm:h-36 md:h-40 rounded-none overflow-hidden mb-3 sm:mb-4 border border-white/5 z-10 select-none">
                   <img
-                    src={story.cover || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80"}
+                    src={optimizeImageUrl(story.cover || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80", 720)}
                     alt={story.title}
                     referrerPolicy="no-referrer"
                     width="400"
