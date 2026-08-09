@@ -115,8 +115,11 @@ const DataStreamBackground: React.FC<{ baseHue?: number }> = ({ baseHue = 180 })
 
     if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    const streamCount = 20;
     let isActive = true;
+    // Throttle redraws to ~30fps — the canvas is decorative; full 60fps burns
+    // main thread on mobile for little visual gain.
+    let lastDraw = 0;
+    const FRAME_MS = 33;
 
     // Logical (CSS px) size — drawing is done in these coords via setTransform.
     let width = window.innerWidth;
@@ -132,27 +135,34 @@ const DataStreamBackground: React.FC<{ baseHue?: number }> = ({ baseHue = 180 })
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = '#050505';
       ctx.fillRect(0, 0, width, height);
+      // Fewer streams on small screens — the background is decorative, not the focus.
+      const streamCount = width < 640 ? 12 : 20;
       streamsRef.current = [];
       for (let i = 0; i < streamCount; i++) {
         streamsRef.current.push(new StreamClass(width, height));
       }
     };
 
-    const animate = () => {
+    const animate = (ts: number = performance.now()) => {
       if (!isActive) return;
 
-      const prevFillStyle = ctx.fillStyle;
-      ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.fillRect(0, 0, width, height);
-      ctx.fillStyle = prevFillStyle;
-      ctx.font = '16px monospace';
+      // Only repaint when a frame is actually due (throttle to ~30fps).
+      if (ts - lastDraw >= FRAME_MS) {
+        lastDraw = ts;
 
-      hue.current = (hue.current + 0.5) % 360;
+        const prevFillStyle = ctx.fillStyle;
+        ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = prevFillStyle;
+        ctx.font = '16px monospace';
 
-      streamsRef.current.forEach(stream =>
-        stream.updateAndDraw(ctx, width, height, hue.current, mouse.current.x, mouse.current.y, mouse.current.radius)
-      );
+        hue.current = (hue.current + 0.5) % 360;
+
+        streamsRef.current.forEach(stream =>
+          stream.updateAndDraw(ctx, width, height, hue.current, mouse.current.x, mouse.current.y, mouse.current.radius)
+        );
+      }
 
       animationFrameId.current = requestAnimationFrame(animate);
     };

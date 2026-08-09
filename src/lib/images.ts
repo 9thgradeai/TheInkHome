@@ -6,12 +6,13 @@
 export function optimizeImageUrl(url: string, maxWidth = 720): string {
   if (!url) return url;
 
-  // Medium CDN: /max/2600/1*....jpeg or /resize:fit:1024/1*....
+  // Medium CDN: downscale AND proxy through our origin (removes third-party
+  // cookies and lets the CDN edge-cache the bytes). See api/img.ts.
   if (url.includes("cdn-images-1.medium.com")) {
     const resized = url
       .replace(/\/max\/\d+\//, `/max/${maxWidth}/`)
       .replace(/\/resize:fit:\d+/, `/resize:fit:${maxWidth}`);
-    return resized;
+    return `/api/img?u=${encodeURIComponent(resized)}`;
   }
 
   // Unsplash: rewrite width + quality
@@ -40,6 +41,6 @@ export function optimizeContentHtml(html: string, maxWidth = 720): string {
       const optimized = src
         .replace(/\/max\/\d+\//, `/max/${maxWidth}/`)
         .replace(/\/resize:fit:\d+/, `/resize:fit:${maxWidth}`);
-      return `${pre}${optimized}`;
+      return `${pre}/api/img?u=${encodeURIComponent(optimized)}`;
     });
 }
