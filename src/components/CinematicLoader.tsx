@@ -9,19 +9,22 @@ interface CinematicLoaderProps {
 export default function CinematicLoader({ onComplete, isWelcomeHome = false }: CinematicLoaderProps) {
   const [phase, setPhase] = useState<"init" | "reveal" | "enter" | "done">("init");
   
+  // Skip the loader early — respects the once-per-session gate in App.
+  const handleSkip = () => onComplete();
+
   useEffect(() => {
     if (isWelcomeHome) {
-      const t1 = setTimeout(() => setPhase("done"), 600);
-      const t2 = setTimeout(() => onComplete(), 1600);
+      const t1 = setTimeout(() => setPhase("done"), 400);
+      const t2 = setTimeout(() => onComplete(), 1100);
       return () => {
         clearTimeout(t1);
         clearTimeout(t2);
       };
     }
-    
-    const t1 = setTimeout(() => setPhase("reveal"), 300);
-    const t2 = setTimeout(() => setPhase("enter"), 2200);
-    const t3 = setTimeout(() => onComplete(), 3200);
+
+    const t1 = setTimeout(() => setPhase("reveal"), 150);
+    const t2 = setTimeout(() => setPhase("enter"), 900);
+    const t3 = setTimeout(() => onComplete(), 2000);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
@@ -38,7 +41,9 @@ export default function CinematicLoader({ onComplete, isWelcomeHome = false }: C
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, scale: 0.95, filter: "blur(5px)" }}
             transition={{ duration: 0.8, ease: "easeInOut" }}
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black"
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black cursor-pointer"
+            onClick={handleSkip}
+            title="Click to skip"
           >
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.6)_0%,rgba(0,0,0,0.95)_100%)]" />
             <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay noise-overlay pointer-events-none" />
@@ -129,7 +134,9 @@ export default function CinematicLoader({ onComplete, isWelcomeHome = false }: C
           initial={{ opacity: 1 }}
           exit={{ opacity: 0, scale: 1.05 }}
           transition={{ duration: 0.8, ease: "easeInOut" }}
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black cursor-pointer"
+          onClick={handleSkip}
+          title="Click to skip"
         >
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.9)_100%)]" />
           <div className="absolute inset-0 opacity-[0.04] mix-blend-overlay noise-overlay pointer-events-none" />
@@ -194,6 +201,15 @@ export default function CinematicLoader({ onComplete, isWelcomeHome = false }: C
                </span>
                <span>System Online</span>
              </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.4 }}
+              transition={{ delay: 0.5, duration: 0.6 }}
+              className="absolute bottom-4 left-0 right-0 text-center text-[8px] font-mono uppercase tracking-[0.25em] text-white/25"
+            >
+              — click to skip —
+            </motion.div>
 
             <motion.div
               initial={{ opacity: 0 }}

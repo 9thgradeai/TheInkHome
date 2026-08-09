@@ -468,11 +468,49 @@ main > div > section {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
-  
+
   *:focus-visible {
     outline: 2px solid var(--atmo-text);
     outline-offset: 2px;
   }
+
+  /* Legibility floor: raise the tiniest all-caps micro-labels above illegibility on phones.
+     Desktop keeps the original cinematic micro-typography untouched. */
+  .text-\[8px\],
+  .text-\[9px\],
+  .text-\[10px\] {
+    font-size: 11px !important;
+    letter-spacing: 0.08em;
+  }
+}
+
+/* ---- Premium reading surface (StoryModal) ----
+   Body text inherits the wrapper's font-size so A-/A+ scales it, and a serif
+   toggle switches the whole article to a classic literary face. */
+.story-copy {
+  font-size: 1rem;
+}
+.story-copy[data-serif="true"] {
+  font-family: Georgia, "Times New Roman", serif;
+}
+.story-copy[data-serif="true"] p,
+.story-copy[data-serif="true"] li,
+.story-copy[data-serif="true"] blockquote,
+.story-copy[data-serif="true"] figcaption,
+.story-copy[data-serif="true"] h2,
+.story-copy[data-serif="true"] h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  color: #d9d6cd;
+}
+.story-copy p,
+.story-copy li,
+.story-copy blockquote,
+.story-copy figcaption {
+  font-size: 1em !important;      /* 1em = inherit wrapper font-size (scales with A-/A+) */
+  line-height: 1.8 !important;
+}
+.story-copy[data-focus="true"] {
+  max-width: 42rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

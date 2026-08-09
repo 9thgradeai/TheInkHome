@@ -118,31 +118,40 @@ const DataStreamBackground: React.FC<{ baseHue?: number }> = ({ baseHue = 180 })
     const streamCount = 20;
     let isActive = true;
 
+    // Logical (CSS px) size — drawing is done in these coords via setTransform.
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+
     const init = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      width = window.innerWidth;
+      height = window.innerHeight;
+      // Cap backing-store DPR at 1.5 — a 60fps canvas is expensive on HiDPI/mobile.
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = '#050505';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, width, height);
       streamsRef.current = [];
       for (let i = 0; i < streamCount; i++) {
-        streamsRef.current.push(new StreamClass(canvas.width, canvas.height));
+        streamsRef.current.push(new StreamClass(width, height));
       }
     };
 
     const animate = () => {
       if (!isActive) return;
-      
+
       const prevFillStyle = ctx.fillStyle;
       ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
       ctx.globalCompositeOperation = 'source-over';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, width, height);
       ctx.fillStyle = prevFillStyle;
       ctx.font = '16px monospace';
 
       hue.current = (hue.current + 0.5) % 360;
 
-      streamsRef.current.forEach(stream => 
-        stream.updateAndDraw(ctx, canvas.width, canvas.height, hue.current, mouse.current.x, mouse.current.y, mouse.current.radius)
+      streamsRef.current.forEach(stream =>
+        stream.updateAndDraw(ctx, width, height, hue.current, mouse.current.x, mouse.current.y, mouse.current.radius)
       );
 
       animationFrameId.current = requestAnimationFrame(animate);
@@ -157,16 +166,29 @@ const DataStreamBackground: React.FC<{ baseHue?: number }> = ({ baseHue = 180 })
       init();
     };
 
+    // Pause the animation while the tab is hidden — no point paying 60fps for a
+    // background nobody can see. Resume when visible again.
+    const handleVisibility = () => {
+      if (document.hidden) {
+        if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+        animationFrameId.current = null;
+      } else if (!animationFrameId.current && isActive) {
+        animate();
+      }
+    };
+
     init();
     animate();
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('resize', handleResize);
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       isActive = false;
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('resize', handleResize);
+      document.removeEventListener('visibilitychange', handleVisibility);
       if (animationFrameId.current) {
         cancelAnimationFrame(animationFrameId.current);
       }
