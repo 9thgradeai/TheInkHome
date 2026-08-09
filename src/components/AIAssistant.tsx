@@ -138,7 +138,7 @@ export default function AIAssistant() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar" role="log" aria-live="polite" aria-label="Assistant messages">
                 {messages.map((msg) => (
                   <AIChatMessage
                     key={msg.id}
@@ -192,6 +192,8 @@ export default function AIAssistant() {
             onClick={() => setIsOpen(true)}
             className="fixed right-3 md:right-6 bottom-3 md:bottom-6 z-50 p-3 rounded-full bg-[var(--atmo-text)] text-black shadow-[0_0_20px_var(--atmo-glow)] hover:bg-white transition-colors cursor-pointer"
             aria-label="Open AI assistant"
+            aria-expanded={false}
+            aria-haspopup="dialog"
           >
             <MessageSquare className="w-5 h-5" />
           </motion.button>

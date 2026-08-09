@@ -35,7 +35,7 @@ export default function StoryList({
         {stories.map((story, index) => (
           <motion.div
             key={story.slug}
-            className="group cursor-pointer py-4 px-3 flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all duration-300 border-l-2 border-transparent hover:border-[var(--atmo-text)] hover:bg-gradient-to-r hover:from-[var(--atmo-text)]/10 hover:to-transparent hover:pl-4 rounded-none"
+            className="group cursor-pointer py-4 px-3 flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all duration-300 border-l-2 border-transparent hover:border-[var(--atmo-text)] hover:bg-gradient-to-r hover:from-[var(--atmo-text)]/10 hover:to-transparent hover:pl-4 rounded-none [content-visibility:auto] [contain-intrinsic-size:auto_5rem]"
             onClick={() => onSelectStory(story)}
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}

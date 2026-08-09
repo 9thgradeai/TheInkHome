@@ -73,7 +73,7 @@ export default function StoryGrid({
             <motion.div
               layout
               key={story.slug}
-              className="group cursor-pointer glass-card tactile-card ripple-host overflow-hidden flex flex-col justify-between min-h-[18rem] sm:min-h-[22rem]"
+              className="group cursor-pointer glass-card tactile-card ripple-host overflow-hidden flex flex-col justify-between min-h-[18rem] sm:min-h-[22rem] [content-visibility:auto] [contain-intrinsic-size:auto_22rem]"
               onClick={() => onSelectStory(story)}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
