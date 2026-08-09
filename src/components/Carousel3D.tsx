@@ -52,6 +52,10 @@ export default function Carousel3D({
   const dragOffsetRef = useRef(0);
   // Mounted card DOM nodes keyed by story slug.
   const cardEls = useRef<Map<string, HTMLDivElement>>(new Map());
+  // rAF scheduler (self-gated — only ticks while animating or dragging).
+  const rafIdRef = useRef<number | null>(null);
+  const lastTickRef = useRef(0);
+  const startLoopRef = useRef<() => void>(() => {});
 
   const n = stories.length;
 
@@ -81,6 +85,7 @@ export default function Carousel3D({
     dragOffsetRef.current = 0;
     dragStartX.current = e.clientX;
     setAutoplay(false); // Pause autoplay on drag
+    startLoopRef.current(); // wake loop for the drag nudge
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -176,11 +181,9 @@ export default function Carousel3D({
   };
 
   // Main loop: ease the fractional rotation toward the target card and update all
-  // mounted cards at the display's refresh rate (60/120fps) on the compositor.
+  // mounted cards on the compositor. Self-gating: the rAF loop only ticks while a
+  // rotation is in motion or a drag is active, so an idle carousel costs ~nothing.
   useEffect(() => {
-    let raf = 0;
-    let last = performance.now();
-
     const applyAll = () => {
       const count = storiesRef.current.length;
       if (count === 0) return;
@@ -194,10 +197,11 @@ export default function Carousel3D({
     };
 
     const tick = (now: number) => {
-      const dt = Math.min((now - last) / 1000, 0.1);
-      last = now;
+      const dt = Math.min((now - lastTickRef.current) / 1000, 0.1);
+      lastTickRef.current = now;
 
       const count = storiesRef.current.length;
+      let inMotion = false;
       if (count > 1) {
         const target = activeIndexRef.current;
         let diff = target - rotRef.current;
@@ -207,15 +211,43 @@ export default function Carousel3D({
           rotRef.current = target; // snap when settled
         } else {
           rotRef.current += diff * (1 - Math.exp(-ROTATION_SPEED * dt)); // frame-rate-independent ease
+          inMotion = true;
         }
       }
+      if (dragOffsetRef.current !== 0) inMotion = true;
 
       applyAll();
-      raf = requestAnimationFrame(tick);
+      if (inMotion) {
+        rafIdRef.current = requestAnimationFrame(tick);
+      } else {
+        rafIdRef.current = null; // idle — stop the loop until something wakes it
+      }
     };
 
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    startLoopRef.current = () => {
+      if (rafIdRef.current == null) {
+        lastTickRef.current = performance.now();
+        rafIdRef.current = requestAnimationFrame(tick);
+      }
+    };
+
+    startLoopRef.current();
+    return () => {
+      if (rafIdRef.current != null) cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    };
+  }, []);
+
+  // Wake the loop whenever the target card changes so it glides there.
+  useEffect(() => {
+    startLoopRef.current();
+  }, [activeIndex]);
+
+  // Re-apply positions on resize (layoutFor reads window.innerWidth) even when idle.
+  useEffect(() => {
+    const onResize = () => startLoopRef.current();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   if (stories.length === 0) {
