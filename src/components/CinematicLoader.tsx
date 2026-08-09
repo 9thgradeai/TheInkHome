@@ -22,9 +22,9 @@ export default function CinematicLoader({ onComplete, isWelcomeHome = false }: C
       };
     }
 
-    const t1 = setTimeout(() => setPhase("reveal"), 150);
-    const t2 = setTimeout(() => setPhase("enter"), 900);
-    const t3 = setTimeout(() => onComplete(), 2000);
+    const t1 = setTimeout(() => setPhase("reveal"), 100);
+    const t2 = setTimeout(() => setPhase("enter"), 600);
+    const t3 = setTimeout(() => onComplete(), 1300);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
