@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
+import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Story } from "./types";
 
@@ -11,6 +11,7 @@ const StoryModal = lazy(() => import("./components/StoryModal"));
 import AvatarImage from "./components/AvatarImage";
 import { Logo } from "./components/Logo";
 import DataStreamBackground from "./components/DataStreamBackground";
+import CursorGlow from "./components/CursorGlow";
 import CinematicLoader from "./components/CinematicLoader";
 import FALLBACK_STORIES from "./data/fallbackStories";
 import FALLBACK_ABOUT from "./data/fallbackAbout";
@@ -40,6 +41,11 @@ import Subscribe from "./components/Subscribe";
 import { getLikesCount } from "./lib/interaction";
 import AIAssistant from "./components/AIAssistant";
 import AdminDashboard from "./components/AdminDashboard";
+import CommandPalette from "./components/CommandPalette";
+import { useAmbientAudio } from "./hooks/useAmbientAudio";
+import { useSeo } from "./hooks/useSeo";
+import { analytics } from "./lib/analytics";
+import { hydrateInteractions, persistInteractions } from "./lib/sync";
 
 export default function App() {
   // Initialize stories from local fallback for instant rendering on static hosts
@@ -55,12 +61,22 @@ export default function App() {
   
   // Navigation & View Toggles
   const [entered, setEntered] = useState(false);
-  const [bgMode, setBgMode] = useState<"stellar" | "ink" | "forest" | "constellation">("stellar");
+  const [bgMode, setBgMode] = useState<"stellar" | "ink" | "forest" | "constellation">(() => {
+    // Restore the reader's last-chosen atmosphere across sessions.
+    try {
+      const saved = localStorage.getItem("the-ink-home:atmosphere");
+      return (["stellar", "ink", "forest", "constellation"] as const).includes(saved as any) ? (saved as any) : "stellar";
+    } catch { return "stellar"; }
+  });
   const [activeTab, setActiveTab] = useState<"3d" | "grid" | "list" | "authors" | "saved" | "guideline">("3d");
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
-  const [cinematicComplete, setCinematicComplete] = useState(false);
+  // Show the cinematic loader only once per session — returning visitors skip it entirely.
+  const [cinematicComplete, setCinematicComplete] = useState(() => {
+    try { return sessionStorage.getItem("the-ink-home:cinematic") === "1"; } catch { return false; }
+  });
   const [isWelcomeHome, setIsWelcomeHome] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const pendingSlugRef = useRef<string | null>(null);
 
@@ -92,6 +108,40 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // ⌘K / Ctrl+K toggles the command palette; "/" opens it when not typing in a field.
+  useEffect(() => {
+    const isTyping = () => {
+      const el = document.activeElement as HTMLElement | null;
+      return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+    };
+    const handlePaletteKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        setPaletteOpen((prev) => !prev);
+        return;
+      }
+      if (e.key === "/" && !isTyping()) {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handlePaletteKey);
+    return () => window.removeEventListener("keydown", handlePaletteKey);
+  }, []);
+
+  // Skip the landing gate with Enter/Space once the cinematic loader is done.
+  useEffect(() => {
+    if (!cinematicComplete || entered) return;
+    const handleGateKey = (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        enterWebsite();
+      }
+    };
+    window.addEventListener("keydown", handleGateKey);
+    return () => window.removeEventListener("keydown", handleGateKey);
+  }, [cinematicComplete, entered]);
+
   // Helper to push history state and update URL
   const navigateTo = (path: string) => {
     if (window.location.pathname !== path) {
@@ -104,6 +154,7 @@ export default function App() {
     setSelectedStory(story);
     if (story) {
       navigateTo(`/story/${story.slug}`);
+      analytics.storyRead(story.slug, story.title);
     } else {
       navigateTo("/" + (activeTab === "authors" ? "about" : activeTab));
     }
@@ -213,6 +264,24 @@ export default function App() {
     localStorage.setItem("the-ink-home:saves", JSON.stringify(savedSlugs));
   }, [savedSlugs]);
 
+  // Hydrate likes/saves from the backend once on load (local stays authoritative).
+  useEffect(() => {
+    let mounted = true;
+    hydrateInteractions(likedSlugs, savedSlugs, (likes, saves) => {
+      if (!mounted) return;
+      setLikedSlugs(likes);
+      setSavedSlugs(saves);
+    });
+    return () => { mounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Debounced best-effort sync to the backend whenever likes/saves change.
+  useEffect(() => {
+    const t = setTimeout(() => persistInteractions(likedSlugs, savedSlugs), 800);
+    return () => clearTimeout(t);
+  }, [likedSlugs, savedSlugs]);
+
   const handleToggleLike = (slug: string) => {
     setLikedSlugs((prev) =>
       prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]
@@ -226,542 +295,169 @@ export default function App() {
   };
   
   // Ambient Music State (Non-intrusive sound effects)
-  const [musicPlaying, setMusicPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { musicPlaying, toggleSound, startAmbient } = useAmbientAudio();
+
+  // SEO head management: per-route + per-article meta, OG/Twitter, canonical, JSON-LD.
+  const seoDescriptor = useMemo(() => {
+    if (selectedStory) {
+      return {
+        title: selectedStory.title,
+        description: (selectedStory.description || "")
+          .replace(/<[^>]+>/g, "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 160),
+        type: "article" as const,
+        image: selectedStory.cover,
+        url: typeof window !== "undefined" ? `${window.location.origin}/#/story/${selectedStory.slug}` : undefined,
+      };
+    }
+    const tabMeta: Record<string, { title: string; description: string }> = {
+      "3d": { title: "The Volumetric Universe", description: "A spatial 3D carousel of editorial stories from The Ink Home." },
+      grid: { title: "Bento Grid", description: "Browse The Ink Home's full archive as an immersive grid." },
+      list: { title: "The Ledger", description: "The Ink Home publication ledger — every story in order." },
+      guideline: { title: "Submission Guidelines", description: "How to become a writer at The Ink Home." },
+      authors: { title: "About & Editors", description: "Meet the editors and authors behind The Ink Home." },
+      saved: { title: "Saved Stories", description: "Your saved collection from The Ink Home." },
+    };
+    return tabMeta[activeTab] || { title: "Where Words Feel at Home" };
+  }, [selectedStory, activeTab]);
+
+  useSeo(seoDescriptor);
+
+  // Persist the chosen atmosphere so the reader's world is remembered.
+  useEffect(() => {
+    try { localStorage.setItem("the-ink-home:atmosphere", bgMode); } catch {}
+  }, [bgMode]);
 
   // Auto-fetch stories & About board profiles from Express proxy servers
   useEffect(() => {
+    let cancelled = false;
     async function fetchInitialData() {
+      setLoading(true);
+
+      // Helper: fetch with a timeout so a slow/missing backend degrades gracefully.
+      const fetchWithTimeout = (input: RequestInfo, timeout = 5000) => {
+        return Promise.race([
+          fetch(input),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), timeout))
+        ] as any);
+      };
+
+      // Base API URL configurable via Vite env: VITE_API_BASE.
+      const API_BASE = (import.meta as any).env?.VITE_API_BASE
+        ? String((import.meta as any).env.VITE_API_BASE).replace(/\/+$/g, "")
+        : "";
+      const DESIRED = 30;
+      const CACHE_KEY = "the-ink-home:stories-cache";
+      const CACHE_TTL = 1000 * 60 * 30; // 30 minutes
+
+      // Hydrate from localStorage immediately for an instant first paint.
       try {
-        setLoading(true);
-        console.log("Fetching stories and author board metadata in parallel (with timeout)...");
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.ts && Date.now() - parsed.ts < CACHE_TTL && Array.isArray(parsed.stories) && parsed.stories.length > 0) {
+            setStories(parsed.stories.slice(0, DESIRED));
+          }
+        }
+      } catch (e) {}
 
-        // Helper: fetch with timeout
-        const fetchWithTimeout = (input: RequestInfo, timeout = 5000) => {
-          return Promise.race([
-            fetch(input),
-            new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), timeout))
-          ] as any);
-        };
+      // Map an rss2json item to our Story shape (used only as a static-host fallback).
+      const mapRSS = (it: any): Story => {
+        const title = it.title || "Untitled";
+        const link = it.link || "";
+        const author = it.author || "The Ink Home";
+        const pubDate = it.pubDate || new Date().toUTCString();
+        const content = it.content || it.description || "";
+        const coverMatch = (content || "").match(/<img[^>]+src=["']([^"']+)["']/i);
+        const cover = coverMatch && coverMatch[1] ? coverMatch[1] : undefined;
+        let slug = "";
+        if (link) {
+          const parts = link.split("/");
+          const last = parts[parts.length - 1];
+          slug = last ? last.split("?")[0] : "";
+        }
+        if (!slug) slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+        return {
+          title,
+          link,
+          author,
+          role: "",
+          pubDate,
+          categories: Array.isArray(it.categories) ? it.categories : ["Editorial"],
+          description: (content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().substring(0, 180) + "...",
+          content,
+          cover,
+          slug,
+          avatar: undefined
+        } as Story;
+      };
 
-        // Base API URL configurable via Vite env: VITE_API_BASE
-        // If not provided, falls back to relative paths (useful for local dev or same-origin deploys)
-        const API_BASE = (import.meta as any).env?.VITE_API_BASE
-          ? String((import.meta as any).env.VITE_API_BASE).replace(/\/+$/g, "")
-          : "";
+      // Merge new stories over whatever is rendered, dedup, cap, and cache.
+      const applyStories = (incoming: Story[]) => {
+        if (incoming.length === 0) return;
+        setStories((prev) => {
+          const slugs = new Set<string>();
+          const merged: Story[] = [];
+          for (const s of incoming) { if (!slugs.has(s.slug)) { merged.push(s); slugs.add(s.slug); } }
+          for (const p of prev) { if (!slugs.has(p.slug)) { merged.push(p); slugs.add(p.slug); } }
+          const final = merged.slice(0, DESIRED);
+          try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), stories: final })); } catch (e) {}
+          return final;
+        });
+      };
 
-        // Primary quick parallel attempt: server API (5s) and public proxy RSS (2s) raced
-        const rss2jsonQuick = (async () => {
-          try {
-            const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent("https://medium.com/feed/the-ink-home")}`;
-            const r = await fetchWithTimeout(rss2jsonUrl, 2000);
-            if (r && r.ok) return r.json();
-          } catch (e) {}
-          return null;
-        })();
-
-        const [storiesRes, aboutRes, rssQuickPayload] = await Promise.all([
-          fetchWithTimeout(`${API_BASE}/api/stories`, 5000).catch((e) => null),
-          fetchWithTimeout(`${API_BASE}/api/about`, 5000).catch((e) => null),
-          rss2jsonQuick
+      try {
+        // Primary: a single server-side fetch to /api/stories + /api/about.
+        const [storiesRes, aboutRes] = await Promise.all([
+          fetchWithTimeout(`${API_BASE}/api/stories`, 5000).catch(() => null),
+          fetchWithTimeout(`${API_BASE}/api/about`, 5000).catch(() => null)
         ]);
-        
+
+        let serverStories: Story[] = [];
         if (storiesRes && storiesRes.ok) {
-          const storiesData = await storiesRes.json();
-          // Merge dynamic stories but keep fallback order as quick-first
-          const dynamic = storiesData.stories || [];
-          if (dynamic.length > 0) {
-            setStories((prev) => {
-              // Prefer dynamic stories but keep initial quick fallback while merging
-              const slugs = new Set(dynamic.map((s: Story) => s.slug));
-              const merged = [...dynamic, ...prev.filter((p) => !slugs.has(p.slug))];
-              return merged;
-            });
-          }
-        } else if (storiesRes === null) {
-          console.warn("Stories fetch timed out or failed quickly; using fallback stories for now.");
-        } else {
-          console.warn(`Stories endpoint returned: ${storiesRes.status}`);
+          const data = await storiesRes.json();
+          serverStories = (data.stories || []) as Story[];
         }
+        if (!cancelled) applyStories(serverStories);
 
-        // If rss2json quick returned useful items, merge them immediately for faster UX
-        if (rssQuickPayload && Array.isArray(rssQuickPayload.items) && rssQuickPayload.items.length > 0) {
-          try {
-            const mappedQuick: Story[] = rssQuickPayload.items.map((it: any) => {
-              const title = it.title || "Untitled";
-              const link = it.link || "";
-              const author = it.author || "The Ink Home";
-              const pubDate = it.pubDate || new Date().toUTCString();
-              const content = it.content || it.description || "";
-              const coverMatch = (content || "").match(/<img[^>]+src=[\"']([^\"']+)[\"']/i);
-              const cover = coverMatch && coverMatch[1] ? coverMatch[1] : undefined;
-              let slug = "";
-              if (link) {
-                const parts = link.split("/");
-                const last = parts[parts.length - 1];
-                slug = last ? last.split("?")[0] : "";
-              }
-              if (!slug) slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-              return {
-                title,
-                link,
-                author,
-                role: "",
-                pubDate,
-                categories: Array.isArray(it.categories) ? it.categories : ["Editorial"],
-                description: (content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().substring(0, 180) + "...",
-                content,
-                cover,
-                slug,
-                avatar: undefined
-              } as Story;
-            });
-
-            if (mappedQuick.length > 0) {
-              setStories((prev) => {
-                const slugs = new Set(prev.map((p) => p.slug));
-                const merged = [...mappedQuick.filter((m) => !slugs.has(m.slug)), ...prev];
-                return merged.slice(0, 30);
-              });
-            }
-          } catch (e) {
-            // ignore quick merge errors
-          }
-        }
-        
         if (aboutRes && aboutRes.ok) {
           const aboutData = await aboutRes.json();
-          setEditors(aboutData.editors || []);
-          setWriters(aboutData.writers || []);
-          if (aboutData.description) {
-            setAboutInfo({
-              description: aboutData.description,
-              officialWebsite: aboutData.officialWebsite || "https://theinkhome.live/"
-            });
-          }
-        } else if (aboutRes === null) {
-          console.warn("About fetch timed out or failed quickly; showing fallback about info.");
-        } else {
-          console.warn(`About page endpoint returned: ${aboutRes.status}`);
-        }
-        
-      } catch (err: any) {
-        console.error("Failed to load initial data quickly: ", err);
-        setError(err.message || "Unknown error connecting to publication");
-      } finally {
-        setLoading(false);
-      }
-
-      // If we still have fewer than desired stories, try public rss2json proxy directly (works on static hosts)
-      try {
-        const DESIRED = 30;
-        const CACHE_KEY = "the-ink-home:stories-cache";
-        const CACHE_TTL = 1000 * 60 * 30; // 30 minutes
-
-        const now = Date.now();
-        // Use cached stories if recent
-        try {
-          const cached = localStorage.getItem(CACHE_KEY);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            if (parsed?.ts && now - parsed.ts < CACHE_TTL && Array.isArray(parsed.stories) && parsed.stories.length >= DESIRED) {
-              setStories(parsed.stories.slice(0, DESIRED));
-              console.log("Using cached stories from localStorage");
-              return;
-            }
-          }
-        } catch (e) {
-          // ignore cache errors
-        }
-
-        if ((stories.length || 0) < DESIRED) {
-          console.log("Attempting rss2json proxy fetch for additional stories (target 30)...");
-          const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent("https://medium.com/feed/the-ink-home")}`;
-
-          const resp = await fetch(rss2jsonUrl, { cache: "no-cache" });
-          let mapped: Story[] = [];
-          if (resp.ok) {
-            const payload = await resp.json();
-            if (payload && Array.isArray(payload.items) && payload.items.length > 0) {
-              mapped = payload.items.map((it: any) => {
-                const title = it.title || "Untitled";
-                const link = it.link || "";
-                const author = it.author || "The Ink Home";
-                const pubDate = it.pubDate || new Date().toUTCString();
-                const content = it.content || it.description || "";
-                const coverMatch = (content || "").match(/<img[^>]+src=[\"']([^\"']+)[\"']/i);
-                const cover = coverMatch && coverMatch[1] ? coverMatch[1] : "";
-                let slug = "";
-                if (link) {
-                  const parts = link.split("/");
-                  const last = parts[parts.length - 1];
-                  slug = last ? last.split("?")[0] : "";
-                }
-                if (!slug) {
-                  slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-                }
-
-                return {
-                  title,
-                  link,
-                  author,
-                  role: "",
-                  pubDate,
-                  categories: Array.isArray(it.categories) ? it.categories : ["Editorial"],
-                  description: (content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().substring(0, 180) + "...",
-                  content,
-                  cover: cover || undefined,
-                  slug,
-                  avatar: undefined
-                } as Story;
+          if (!cancelled) {
+            if (Array.isArray(aboutData.editors)) setEditors(aboutData.editors);
+            if (Array.isArray(aboutData.writers)) setWriters(aboutData.writers);
+            if (aboutData.description) {
+              setAboutInfo({
+                description: aboutData.description,
+                officialWebsite: aboutData.officialWebsite || "https://theinkhome.live/"
               });
             }
           }
+        }
 
-          // If rss2json didn't give enough items, try AllOrigins raw RSS and parse
-          if (mapped.length < DESIRED) {
-            try {
-              console.log("rss2json returned fewer items; trying AllOrigins raw RSS fetch...");
-              const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent("https://medium.com/feed/the-ink-home")}`;
-              const rawResp = await fetch(allOriginsUrl, { cache: "no-cache" });
-              if (rawResp.ok) {
-                const rawJson = await rawResp.json();
-                const xml = rawJson?.contents || rawJson;
-                if (xml && typeof xml === "string") {
-                  // Simple RSS parser to extract <item> blocks
-                  const items: Story[] = [];
-                  const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
-                  let m;
-                  while ((m = itemRegex.exec(xml)) !== null) {
-                    const item = m[1];
-                    const titleMatch = item.match(/<title>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/title>/i);
-                    const linkMatch = item.match(/<link>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/link>/i);
-                    const authorMatch = item.match(/<dc:creator>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/dc:creator>/i) || item.match(/<creator>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/creator>/i);
-                    const pubDateMatch = item.match(/<pubDate>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/pubDate>/i);
-                    const contentMatch = item.match(/<content:encoded>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([\s\S]*?))<\/content:encoded>/i) || item.match(/<description>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([\s\S]*?))<\/description>/i);
-
-                    const title = (titleMatch ? (titleMatch[1] || titleMatch[2]) : "Untitled") || "Untitled";
-                    const link = (linkMatch ? (linkMatch[1] || linkMatch[2]) : "") || "";
-                    const author = (authorMatch ? (authorMatch[1] || authorMatch[2]) : "The Ink Home") || "The Ink Home";
-                    const pubDate = (pubDateMatch ? (pubDateMatch[1] || pubDateMatch[2]) : new Date().toUTCString()) || new Date().toUTCString();
-                    const content = (contentMatch ? (contentMatch[1] || contentMatch[2]) : "") || "";
-                    const coverMatch = content.match(/<img[^>]+src=[\"']([^\"']+)[\"']/i);
-                    const cover = coverMatch && coverMatch[1] ? coverMatch[1] : undefined;
-
-                    let slug = "";
-                    if (link) {
-                      const parts = link.split("/");
-                      const last = parts[parts.length - 1];
-                      slug = last ? last.split("?")[0] : "";
-                    }
-                    if (!slug) slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-
-                    items.push({
-                      title,
-                      link,
-                      author,
-                      role: "",
-                      pubDate,
-                      categories: ["Editorial"],
-                      description: content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().substring(0, 180) + "...",
-                      content,
-                      cover,
-                      slug,
-                      avatar: undefined
-                    });
-                  }
-
-                  if (items.length > 0) {
-                    // append items not already in mapped
-                    const existingSlugs = new Set(mapped.map((s) => s.slug));
-                    for (const it of items) {
-                      if (!existingSlugs.has(it.slug)) mapped.push(it);
-                      if (mapped.length >= DESIRED) break;
-                    }
-                  }
-                }
-              }
-            } catch (allErr) {
-              console.warn("AllOrigins RSS fetch failed:", allErr);
+        // Fallback for static hosts without a backend: a single rss2json fetch.
+        if (serverStories.length === 0) {
+          const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent("https://medium.com/feed/the-ink-home")}`;
+          const resp = await fetchWithTimeout(rss2jsonUrl, 6000);
+          if (resp && resp.ok) {
+            const payload = await resp.json();
+            if (payload && Array.isArray(payload.items)) {
+              const mapped = payload.items.map(mapRSS);
+              if (!cancelled) applyStories(mapped);
             }
-          }
-
-          // If still short, aggressively scrape the publication HTML for article links and fetch individual pages
-          if (mapped.length < DESIRED) {
-            try {
-              console.log("Still short on items; scraping publication homepage for article links via AllOrigins...");
-              const pubUrl = "https://medium.com/the-ink-home";
-              const pubAllUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(pubUrl)}`;
-              const pubResp = await fetch(pubAllUrl, { cache: "no-cache" });
-              if (pubResp.ok) {
-                const pubJson = await pubResp.json();
-                const html = pubJson?.contents || pubJson;
-                if (html && typeof html === "string") {
-                  // Find links to articles under the publication
-                  const linkRegex = /https:\/\/medium.com\/the-ink-home\/[a-z0-9\-_%]+/ig;
-                  const found = new Set<string>();
-                  let m;
-                  while ((m = linkRegex.exec(html)) !== null) {
-                    found.add(m[0]);
-                  }
-
-                  // Also try relative links
-                  const relRegex = /href=["']\/(?:the-ink-home)\/([a-z0-9\-_%]+)["']/ig;
-                  while ((m = relRegex.exec(html)) !== null) {
-                    found.add(`https://medium.com/the-ink-home/${m[1]}`);
-                  }
-
-                  const links = Array.from(found).slice(0, DESIRED * 2);
-                  // Fetch each article page sequentially until we have DESIRED items
-                  for (const link of links) {
-                    if (mapped.length >= DESIRED) break;
-                    try {
-                      const articleAll = `https://api.allorigins.win/get?url=${encodeURIComponent(link)}`;
-                      const artResp = await fetch(articleAll, { cache: "no-cache" });
-                      if (!artResp.ok) continue;
-                      const artJson = await artResp.json();
-                      const artHtml = artJson?.contents || artJson;
-                      if (!artHtml || typeof artHtml !== "string") continue;
-
-                      // Extract title, content snippet, image, author, pubDate
-                      const tMatch = artHtml.match(/<title>([^<]+)<\/title>/i);
-                      const title = (tMatch && tMatch[1]) ? tMatch[1].replace(/\s+\|\s+Medium.*$/i, "").trim() : "Untitled";
-                      const linkMatch = link;
-                      const authorMatch = artHtml.match(/rel=\"author\"[^>]*>([^<]+)<\/a>/i) || artHtml.match(/<meta name=\"author\" content=\"([^\"]+)\"/i);
-                      const author = authorMatch ? (authorMatch[1] || authorMatch[0]) : "The Ink Home";
-                      const dateMatch = artHtml.match(/<meta property=\"article:published_time\" content=\"([^\"]+)\"/i) || artHtml.match(/<time[^>]*datetime=\"([^\"]+)\"/i);
-                      const pubDate = dateMatch ? (dateMatch[1] || new Date().toUTCString()) : new Date().toUTCString();
-                      const contentMatch = artHtml.match(/<article[\s\S]*?<\/article>/i) || artHtml.match(/<section[\s\S]*?<\/section>/i) || ["",""];
-                      const content = contentMatch && contentMatch[0] ? contentMatch[0] : "";
-                      const imgMatch = artHtml.match(/<img[^>]+src=[\"']([^\"']+)[\"']/i);
-                      const cover = imgMatch && imgMatch[1] ? imgMatch[1] : undefined;
-                      let slug = "";
-                      try {
-                        const parts = link.split("/");
-                        slug = parts[parts.length - 1] || parts[parts.length - 2] || title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-                      } catch (e) {
-                        slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-                      }
-
-                      const item: Story = {
-                        title: title.trim(),
-                        link: linkMatch,
-                        author: author.trim(),
-                        role: "",
-                        pubDate,
-                        categories: ["Editorial"],
-                        description: (content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().substring(0, 180) + "...",
-                        content,
-                        cover,
-                        slug,
-                        avatar: undefined
-                      };
-
-                      // Dedupe and add
-                      if (!mapped.some((s) => s.slug === item.slug)) {
-                        mapped.push(item);
-                      }
-                    } catch (e) {
-                      // continue on per-article errors
-                      continue;
-                    }
-                  }
-                }
-              }
-            } catch (scrapeErr) {
-              console.warn("Publication scraping failed:", scrapeErr);
-            }
-          }
-
-          // Merge mapped with current stories (dedupe)
-          if (mapped.length > 0) {
-            setStories((prev) => {
-              const slugs = new Set();
-              const merged: Story[] = [];
-              for (const s of mapped) {
-                if (!slugs.has(s.slug)) {
-                  merged.push(s);
-                  slugs.add(s.slug);
-                }
-              }
-              for (const p of prev) {
-                if (!slugs.has(p.slug)) {
-                  merged.push(p);
-                  slugs.add(p.slug);
-                }
-              }
-              const final = merged.slice(0, DESIRED);
-              // Cache to localStorage
-              try {
-                localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), stories: final }));
-              } catch (e) {}
-              return final;
-            });
           }
         }
-      } catch (rssErr) {
-        console.warn("rss2json/allorigins fallback failed:", rssErr);
+      } catch (err: any) {
+        console.error("Failed to load initial data: ", err);
+        if (!cancelled) setError(err.message || "Unknown error connecting to publication");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
     fetchInitialData();
+    return () => { cancelled = true; };
   }, []);
-
-  // Set up Ambient Soundscape & Scroll Velocity tracking
-  const lastScrollY = useRef(0);
-  const lastScrollTime = useRef(Date.now());
-  const scrollVelocity = useRef(0);
-
-  useEffect(() => {
-    // Generate a beautiful, low-frequency cosmic synth tone as standard audio
-    // helper so we don't have to pool heavy external audio files. 
-    // This is creative web acoustics at its finest!
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    
-    // Create an audio oscillator that acts as a soothing hum when toggled
-    audioRef.current = {
-      play: () => {
-        if (audioContext.state === "suspended") {
-          audioContext.resume();
-        }
-        // Synthesize an infinite ambient wave
-        const osc = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(55, audioContext.currentTime); // Low A hum
-        
-        // Lowpass filter for deep acoustic reading atmosphere
-        const filter = audioContext.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.frequency.setValueAtTime(220, audioContext.currentTime);
-        filter.Q.setValueAtTime(1.0, audioContext.currentTime);
-
-        // Soft volume to hold a gentle focus sound
-        gainNode.gain.setValueAtTime(0.015, audioContext.currentTime);
-        
-        // Add subtle low frequency LFO pitch modulation
-        const lfo = audioContext.createOscillator();
-        const lfoGain = audioContext.createGain();
-        lfo.frequency.setValueAtTime(0.15, audioContext.currentTime); // Ultra slow rhythm
-        lfoGain.gain.setValueAtTime(5, audioContext.currentTime);
-        
-        // Secondary shimmer oscillator (higher pitch) that emerges only when scrolling
-        const shimmerOsc = audioContext.createOscillator();
-        shimmerOsc.type = "triangle";
-        shimmerOsc.frequency.setValueAtTime(440, audioContext.currentTime);
-        const shimmerGain = audioContext.createGain();
-        shimmerGain.gain.setValueAtTime(0.0, audioContext.currentTime); // Start silent
-
-        lfo.connect(lfoGain);
-        lfoGain.connect(osc.frequency);
-        
-        osc.connect(filter);
-        shimmerOsc.connect(shimmerGain);
-        shimmerGain.connect(filter);
-        
-        filter.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        osc.start();
-        lfo.start();
-        shimmerOsc.start();
-        
-        (audioRef.current as any).audioContext = audioContext;
-        (audioRef.current as any).oscillator = osc;
-        (audioRef.current as any).lfo = lfo;
-        (audioRef.current as any).shimmerOsc = shimmerOsc;
-        (audioRef.current as any).shimmerGain = shimmerGain;
-        (audioRef.current as any).filter = filter;
-        (audioRef.current as any).gainNode = gainNode;
-      },
-      pause: () => {
-        try {
-          const ref = audioRef.current as any;
-          if (ref.oscillator) ref.oscillator.stop();
-          if (ref.lfo) ref.lfo.stop();
-          if (ref.shimmerOsc) ref.shimmerOsc.stop();
-          if (ref.audioContext) ref.audioContext.suspend();
-        } catch (e) {}
-      }
-    } as any;
-
-    // Scroll tracker
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      const currentTime = Date.now();
-      const dt = Math.max(currentTime - lastScrollTime.current, 10);
-      const dy = Math.abs(currentScrollY - lastScrollY.current);
-      
-      const velocity = dy / dt; // pixels per ms
-      scrollVelocity.current = Math.min(velocity, 5); // cap at reasonable speed
-      
-      lastScrollY.current = currentScrollY;
-      lastScrollTime.current = currentTime;
-    };
-
-    // Animation frame tick loop to decay scroll velocity smoothly and modulate audio
-    let animationFrameId: number;
-    let lastTickTime = Date.now();
-
-    const tick = () => {
-      const now = Date.now();
-      const dt = (now - lastTickTime) / 1000;
-      lastTickTime = now;
-
-      // Decay velocity
-      if (scrollVelocity.current > 0) {
-        scrollVelocity.current -= scrollVelocity.current * 3.5 * dt;
-        if (scrollVelocity.current < 0.001) scrollVelocity.current = 0;
-      }
-
-      // Modulate synth properties if running
-      const ref = audioRef.current as any;
-      if (ref && ref.audioContext && ref.audioContext.state === "running") {
-        const vel = scrollVelocity.current;
-        const curTime = ref.audioContext.currentTime;
-
-        // Modulate main filter frequency (up to 1800Hz)
-        const targetFilterFreq = 220 + vel * 320; // 220Hz -> ~1820Hz at max velocity
-        if (ref.filter) {
-          ref.filter.frequency.setTargetAtTime(targetFilterFreq, curTime, 0.12);
-          ref.filter.Q.setTargetAtTime(1.0 + vel * 2.0, curTime, 0.12);
-        }
-
-        // Modulate secondary shimmer volume & pitch based on velocity
-        if (ref.shimmerGain && ref.shimmerOsc) {
-          const targetShimmerVol = vel * 0.012; // max shimmer volume multiplier
-          ref.shimmerGain.gain.setTargetAtTime(targetShimmerVol, curTime, 0.15);
-
-          const targetShimmerFreq = 440 + vel * 80;
-          ref.shimmerOsc.frequency.setTargetAtTime(targetShimmerFreq, curTime, 0.18);
-        }
-      }
-
-      animationFrameId = requestAnimationFrame(tick);
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    animationFrameId = requestAnimationFrame(tick);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      cancelAnimationFrame(animationFrameId);
-      try {
-        const ref = audioRef.current as any;
-        if (ref && ref.oscillator) ref.oscillator.stop();
-        if (ref && ref.shimmerOsc) ref.shimmerOsc.stop();
-      } catch (e) {}
-    };
-  }, []);
-
-  const handleToggleSound = () => {
-    if (musicPlaying) {
-      audioRef.current?.pause();
-      setMusicPlaying(false);
-    } else {
-      audioRef.current?.play();
-      setMusicPlaying(true);
-    }
-  };
 
   const enterWebsite = () => {
     setIsWelcomeHome(true);
@@ -769,16 +465,12 @@ export default function App() {
     setCinematicComplete(false);
     navigateTo("/" + (activeTab === "authors" ? "about" : activeTab));
     // Auto start the sound on entrance for premium cinematic audio feedback
-    if (!musicPlaying) {
-      try {
-        audioRef.current?.play();
-        setMusicPlaying(true);
-      } catch (e) {}
-    }
+    startAmbient();
   };
 
   const handleCinematicComplete = () => {
     setCinematicComplete(true);
+    try { sessionStorage.setItem("the-ink-home:cinematic", "1"); } catch {}
   };
 
    return (
@@ -791,7 +483,10 @@ export default function App() {
          )}
        
        <DataStreamBackground baseHue={bgMode === "stellar" ? 190 : bgMode === "ink" ? 235 : bgMode === "forest" ? 35 : bgMode === "constellation" ? 160 : 190} />
-       
+
+       {/* Cursor-reactive ambient glow — tints with the active atmosphere */}
+       <CursorGlow />
+
        {/* Carbon & Noise Texture Overlays */}
        <div className="absolute inset-0 pointer-events-none opacity-[0.03] contrast-150 mix-blend-overlay carbon-texture z-[2]" />
        <div className="absolute inset-0 pointer-events-none opacity-[0.02] noise-overlay z-[2]" />
@@ -850,31 +545,23 @@ export default function App() {
         <span className={`w-1 h-1 rounded-full ${bgMode === "constellation" ? "bg-black" : "bg-current opacity-70"}`} />
         Neural
         </button>
-      </div>
 
-      {/* Floating Sound Controller */}
-      <button 
-        onClick={handleToggleSound}
-        className="fixed bottom-20 right-3 sm:bottom-6 sm:right-6 z-50 flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 sm:py-2.5 bg-black/60 hover:bg-black/85 border border-white/10 hover:border-[var(--glow-text)]/40 rounded-full text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-slate-400 hover:text-white transition-all backdrop-blur-xl cursor-pointer shadow-2xl hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]"
-        title={musicPlaying ? "Mute Cosmic Hum" : "Unmute Cosmic Hum"}
-      >
-        {musicPlaying ? (
-          <>
-            <div className="sound-wave-container">
-              <span className="sound-wave-bar" />
-              <span className="sound-wave-bar" />
-              <span className="sound-wave-bar" />
-              <span className="sound-wave-bar" />
-            </div>
-            <span className="text-[8px] sm:text-[9px] text-[var(--glow-text)] atmosphere-text pr-0.5 sm:pr-1 font-bold">AMBIENT</span>
-          </>
-        ) : (
-          <>
-            <VolumeX className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-            <span className="text-[8px] sm:text-[9px] pr-0.5 sm:pr-1">MUTED</span>
-          </>
-        )}
-      </button>
+        {/* Divider + ambient sound toggle — consolidated into the single utility cluster */}
+        <div className="w-px h-4 bg-white/10 mx-1 sm:mx-1.5" />
+        <button
+          onClick={toggleSound}
+          className={`px-2.5 py-1 rounded-full transition-all cursor-pointer flex items-center gap-1 ${
+            musicPlaying ? "text-[var(--atmo-text)] font-bold" : "text-slate-400 hover:text-[var(--atmo-text)]"
+          }`}
+          title={musicPlaying ? "Mute Cosmic Hum" : "Unmute Cosmic Hum"}
+        >
+          {musicPlaying ? (
+            <Volume2 className="w-3 h-3" />
+          ) : (
+            <VolumeX className="w-3 h-3" />
+          )}
+        </button>
+      </div>
 
       <AnimatePresence mode="wait">
         
@@ -1156,15 +843,17 @@ export default function App() {
 
                 <div className="w-8 h-px bg-white/10 my-1" />
 
-                <nav className="flex flex-col items-center gap-1 w-full px-1.5">
+                <nav className="flex flex-col items-center gap-1 w-full px-1.5" aria-label="Primary">
                   <button
                     onClick={() => handleTabChange("3d")}
                     className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer relative ${
-                      activeTab === "3d" 
-                        ? "bg-white text-black shadow-[0_8px_20px_rgba(255,255,255,0.18)]" 
+                      activeTab === "3d"
+                        ? "bg-white text-black shadow-[0_8px_20px_rgba(255,255,255,0.18)]"
                         : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
                     }`}
                     title="3D Universe"
+                    aria-label="View 3D Universe carousel"
+                    aria-pressed={activeTab === "3d"}
                   >
                     <Compass className="w-4 h-4" />
                     {activeTab === "3d" && (
@@ -1179,6 +868,8 @@ export default function App() {
                         : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
                     }`}
                     title="Bento Grid"
+                    aria-label="View stories as grid"
+                    aria-pressed={activeTab === "grid"}
                   >
                     <LayoutGrid className="w-4 h-4" />
                     {activeTab === "grid" && (
@@ -1193,6 +884,8 @@ export default function App() {
                         : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
                     }`}
                     title="Ledger List"
+                    aria-label="View stories as list"
+                    aria-pressed={activeTab === "list"}
                   >
                     <AlignLeft className="w-4 h-4" />
                     {activeTab === "list" && (
@@ -1207,6 +900,8 @@ export default function App() {
                         : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
                     }`}
                     title="Guidelines"
+                    aria-label="View submission guidelines"
+                    aria-pressed={activeTab === "guideline"}
                   >
                     <Feather className="w-4 h-4" />
                     {activeTab === "guideline" && (
@@ -1221,6 +916,8 @@ export default function App() {
                         : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
                     }`}
                     title="About Us"
+                    aria-label="View about and authors"
+                    aria-pressed={activeTab === "authors"}
                   >
                     <Users className="w-4 h-4" />
                     {activeTab === "authors" && (
@@ -1235,6 +932,8 @@ export default function App() {
                         : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
                     }`}
                     title="Saved"
+                    aria-label="View saved stories"
+                    aria-pressed={activeTab === "saved"}
                   >
                     <Bookmark className="w-4 h-4" />
                     {activeTab === "saved" && (
@@ -1658,9 +1357,15 @@ export default function App() {
 
       {/* Volumetric Story Modal Popup */}
       <Suspense fallback={null}>
-        <StoryModal 
-          story={selectedStory} 
-          onClose={() => handleSelectStory(null)} 
+        <StoryModal
+          story={selectedStory}
+          stories={stories}
+          onClose={() => handleSelectStory(null)}
+          onSelectStory={handleSelectStory}
+          onContribute={() => {
+            handleTabChange("guideline");
+            handleSelectStory(null);
+          }}
           isLiked={selectedStory ? likedSlugs.includes(selectedStory.slug) : false}
           isSaved={selectedStory ? savedSlugs.includes(selectedStory.slug) : false}
           onToggleLike={handleToggleLike}
@@ -1669,6 +1374,12 @@ export default function App() {
       </Suspense>
 
       <AIAssistant />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        stories={stories}
+        onSelectStory={handleSelectStory}
+      />
       <AnimatePresence>
         {adminOpen && (
           <AdminDashboard onClose={() => setAdminOpen(false)} />

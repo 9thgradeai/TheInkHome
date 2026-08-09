@@ -7,6 +7,8 @@
     { "src": "/fonts/(.*)", "dest": "/dist/fonts/$1" },
     { "src": "/manifest.json", "dest": "/dist/manifest.json" },
     { "src": "/sw.js", "dest": "/dist/sw.js" },
+    { "src": "/robots.txt", "dest": "/dist/robots.txt" },
+    { "src": "/sitemap.xml", "dest": "/dist/sitemap.xml" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
