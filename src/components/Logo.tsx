@@ -1,5 +1,5 @@
 import React from "react";
-import inkHomeLogo from "../../assets/The_Ink_Home.webp";
+import inkHomeLogo from "../../assets/The_Ink_Home_sm.webp";
 
 interface LogoProps {
   className?: string;

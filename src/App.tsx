@@ -8,6 +8,10 @@ const StoryList = lazy(() => import("./components/StoryList"));
 const AuthorsSection = lazy(() => import("./components/AuthorsSection"));
 const SubmissionGuideline = lazy(() => import("./components/SubmissionGuideline"));
 const StoryModal = lazy(() => import("./components/StoryModal"));
+const Subscribe = lazy(() => import("./components/Subscribe"));
+const AIAssistant = lazy(() => import("./components/AIAssistant"));
+const AdminDashboard = lazy(() => import("./components/AdminDashboard"));
+const CommandPalette = lazy(() => import("./components/CommandPalette"));
 import AvatarImage from "./components/AvatarImage";
 import { Logo } from "./components/Logo";
 import DataStreamBackground from "./components/DataStreamBackground";
@@ -37,11 +41,7 @@ import {
   Menu,
   ArrowUpRight
 } from "lucide-react";
-import Subscribe from "./components/Subscribe";
 import { getLikesCount } from "./lib/interaction";
-import AIAssistant from "./components/AIAssistant";
-import AdminDashboard from "./components/AdminDashboard";
-import CommandPalette from "./components/CommandPalette";
 import { useAmbientAudio } from "./hooks/useAmbientAudio";
 import { useSeo } from "./hooks/useSeo";
 import { analytics } from "./lib/analytics";
@@ -581,7 +581,7 @@ export default function App() {
             <motion.header
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
+              transition={{ duration: 0.4, delay: 0.05, ease: "easeOut" }}
               className="w-full flex items-center justify-between max-w-6xl mx-auto"
             >
               <div className="flex items-center gap-2.5">
@@ -603,7 +603,7 @@ export default function App() {
               <motion.div
                 initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 1.2, delay: 0.2 }}
+                transition={{ duration: 0.5, delay: 0.05 }}
                 className="space-y-6"
               >
                 {/* Visual Label Banner */}
@@ -631,7 +631,7 @@ export default function App() {
 <motion.div
                    initial={{ opacity: 0, y: 15, scale: 0.95 }}
                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                   transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
+                   transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
                  >
                    <button
                      onClick={enterWebsite}
@@ -648,7 +648,7 @@ export default function App() {
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
               className="w-full max-w-6xl mx-auto"
             >
               {loading ? (
@@ -660,7 +660,7 @@ export default function App() {
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.9 }}
+                    transition={{ duration: 0.5, delay: 0.35 }}
                     className="flex items-center justify-between text-[9px] sm:text-[10px] font-mono tracking-widest uppercase text-slate-500 px-2 sm:px-0"
                   >
                     <span className="flex items-center gap-1.5 sm:gap-2">
@@ -675,17 +675,19 @@ export default function App() {
 <motion.div
                      initial={{ opacity: 0, y: 20 }}
                      animate={{ opacity: 1, y: 0 }}
-                     transition={{ duration: 0.6, delay: 1.0 }}
+                     transition={{ duration: 0.5, delay: 0.4 }}
                      className="max-w-4xl mx-auto mb-3 sm:mb-4 px-4 sm:px-0"
                    >
-                     <Subscribe />
+                     <Suspense fallback={null}>
+                       <Subscribe />
+                     </Suspense>
                    </motion.div>
                    
                     {/* The Bento Archive */}
                    <motion.div
                      initial={{ opacity: 0, y: 30 }}
                      animate={{ opacity: 1, y: 0 }}
-                     transition={{ duration: 0.8, delay: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                     transition={{ duration: 0.6, delay: 0.45, ease: [0.16, 1, 0.3, 1] }}
                      className="mt-6 sm:mt-8"
                    >
                      <div className="flex items-center justify-between mb-4 px-2 sm:px-0">
@@ -697,7 +699,6 @@ export default function App() {
                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6">
                        {stories.map((story, index) => (
                          <motion.div
-                           layout
                            key={story.slug}
                            className="group cursor-pointer glass-card tactile-card ripple-host overflow-hidden flex flex-col justify-between min-h-[18rem] sm:min-h-[22rem]"
                            onClick={() => {
@@ -714,7 +715,7 @@ export default function App() {
                            {/* Media Section */}
                            <div className="relative w-full h-32 sm:h-44 overflow-hidden border-b border-white/5">
                               <img
-                                src={optimizeImageUrl(story.cover || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80", 720)}
+                                src={optimizeImageUrl(story.cover || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80", 640)}
                                 alt={story.title}
                                 referrerPolicy="no-referrer"
                                 width="400"
@@ -1374,16 +1375,22 @@ export default function App() {
         />
       </Suspense>
 
-      <AIAssistant />
-      <CommandPalette
-        open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
-        stories={stories}
-        onSelectStory={handleSelectStory}
-      />
+      <Suspense fallback={null}>
+        <AIAssistant />
+      </Suspense>
+      <Suspense fallback={null}>
+        <CommandPalette
+          open={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          stories={stories}
+          onSelectStory={handleSelectStory}
+        />
+      </Suspense>
       <AnimatePresence>
         {adminOpen && (
-          <AdminDashboard onClose={() => setAdminOpen(false)} />
+          <Suspense fallback={null}>
+            <AdminDashboard onClose={() => setAdminOpen(false)} />
+          </Suspense>
         )}
       </AnimatePresence>
     </div>

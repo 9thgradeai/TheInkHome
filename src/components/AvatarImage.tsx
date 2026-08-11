@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { optimizeImageUrl } from "../lib/images";
 
 interface AvatarImageProps {
   src: string;
@@ -7,11 +8,11 @@ interface AvatarImageProps {
   fallbackSrc?: string;
 }
 
-export default function AvatarImage({ 
-  src, 
-  alt, 
-  className = "", 
-  fallbackSrc = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80" 
+export default function AvatarImage({
+  src,
+  alt,
+  className = "",
+  fallbackSrc = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde"
 }: AvatarImageProps) {
   const [currentSrc, setCurrentSrc] = useState<string>(src);
   const [triedFallback, setTriedFallback] = useState<boolean>(false);
@@ -21,20 +22,23 @@ export default function AvatarImage({
     setTriedFallback(false);
   }, [src]);
 
-  const handleError = () => {
-    if (!triedFallback) {
-      setTriedFallback(true);
-      setCurrentSrc(fallbackSrc);
-    }
-  };
+  // Avatars render at 14–80px; always fetch a small variant, never the full-res
+  // original (the raw Unsplash default is ~2.7MB). 128px covers 2x retina at
+  // the largest displayed size.
+  const displaySrc = optimizeImageUrl(currentSrc, 128);
 
   return (
     <img
-      src={currentSrc}
+      src={displaySrc}
       alt={alt}
       referrerPolicy="no-referrer"
       className={className}
-      onError={handleError}
+      onError={() => {
+        if (!triedFallback) {
+          setTriedFallback(true);
+          setCurrentSrc(fallbackSrc);
+        }
+      }}
     />
   );
 }

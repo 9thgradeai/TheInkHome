@@ -27,6 +27,12 @@ export function optimizeImageUrl(url: string, maxWidth = 720): string {
     }
   }
 
+  // Picsum (fallback covers): downscale the fixed /W/H/ path variant.
+  if (url.includes("picsum.photos")) {
+    const h = Math.max(1, Math.round(maxWidth * 0.625));
+    return url.replace(/\/\d+\/\d+\.jpg/, `/${maxWidth}/${h}.jpg`);
+  }
+
   return url;
 }
 
