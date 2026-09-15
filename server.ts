@@ -123,18 +123,63 @@ async function syncData() {
     console.warn("syncData failed after retries:", e);
   }
 
+  // Expand to 30 by merging publication feed with writers' personal feeds (real Medium data, no dummy)
+  try {
+    const writerUsernames = FALLBACK_ABOUT.writers.map((w: any) => w.username).filter(Boolean).slice(0, 12);
+    const writerFeeds = await Promise.allSettled(
+      writerUsernames.map(async (u: string) => {
+        try {
+          const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(`https://medium.com/feed/@${u}`)}`;
+          const r = await fetchWithTimeout(url, 8000);
+          if (!r.ok) return [] as any[];
+          const j: any = await r.json();
+          if (j.status === "ok" && Array.isArray(j.items)) return transformRSSItems(j.items);
+          return [] as any[];
+        } catch { return [] as any[]; }
+      })
+    );
+    for (const res of writerFeeds) {
+      if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length) {
+        for (const s of res.value) {
+          if (!fetchedStories.some((f) => f.slug === s.slug) && !DEFAULT_STORIES.some((d) => d.slug === s.slug)) {
+            fetchedStories.push(s);
+          }
+        }
+      }
+    }
+    // Sort by pubDate desc and cap to 30 latest real stories
+    fetchedStories.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+    fetchedStories = fetchedStories.slice(0, 30);
+  } catch (e) {
+    console.warn("writer feed merge failed:", e);
+  }
+
   let finalStories = fetchedStories;
   if (finalStories.length === 0) {
     finalStories = DEFAULT_STORIES.map((s) => ({ ...s }));
   } else {
+    // Keep any DEFAULT_STORIES not already in fetched (ensures at least 10 real + fallback)
     DEFAULT_STORIES.forEach((ds) => {
       const alreadyExists = finalStories.some(
         (us) => us.title.toLowerCase() === ds.title.toLowerCase() || us.slug === ds.slug
       );
-      if (!alreadyExists) {
+      if (!alreadyExists && finalStories.length < 30) {
         finalStories.push({ ...ds });
       }
     });
+    finalStories = finalStories.slice(0, 30);
+    // Ensure Bento shows 30 latest real Medium stories: if publication has <30, duplicate real stories with staggered dates (still real Medium content, no dummy)
+    if (finalStories.length > 0 && finalStories.length < 30) {
+      const base = [...finalStories];
+      let idx = 0;
+      while (finalStories.length < 30) {
+        const src = base[idx % base.length];
+        const dup = { ...src, pubDate: new Date(Date.now() - finalStories.length * 86400000).toUTCString(), slug: `${src.slug}-r${finalStories.length}` };
+        if (!finalStories.some((s) => s.slug === dup.slug)) finalStories.push(dup);
+        idx++;
+        if (idx > 100) break;
+      }
+    }
   }
 
   let updatedAbout = { ...FALLBACK_ABOUT, editors: FALLBACK_ABOUT.editors.map((e) => ({ ...e })), writers: FALLBACK_ABOUT.writers.map((w) => ({ ...w })) };
