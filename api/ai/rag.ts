@@ -1,6 +1,6 @@
-import { KnowledgeDoc, SearchResult, ChatResponse, ActionItem } from "./types";
-import { loadAllDocuments, getDocUrl, getDocTypeLabel } from "./knowledge";
-import { SYSTEM_PROMPT } from "./system-prompt";
+import { KnowledgeDoc, SearchResult, ChatResponse, ActionItem } from "./types.js";
+import { loadAllDocuments, getDocUrl, getDocTypeLabel } from "./knowledge.js";
+import { SYSTEM_PROMPT } from "./system-prompt.js";
 
 const GROQ_MODEL = "openai/gpt-oss-20b";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";

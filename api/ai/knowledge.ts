@@ -1,5 +1,5 @@
-import { KnowledgeDoc } from "./types";
-import { knowledgeDocs } from "./knowledge-data";
+import { KnowledgeDoc } from "./types.js";
+import { knowledgeDocs } from "./knowledge-data.js";
 
 export function loadAllDocuments(): Promise<KnowledgeDoc[]> {
   return Promise.resolve(knowledgeDocs);
