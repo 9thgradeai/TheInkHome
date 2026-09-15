@@ -12,6 +12,7 @@ type Story = {
   cover: string;
   slug: string;
   avatar: string;
+  username?: string;
 };
 
 // Default stories from persistent cache (10 real Medium stories)
@@ -54,6 +55,7 @@ const DEFAULT_STORIES: Story[] = [
     description: "Building reliable RAG systems without agent overhead.",
     content: "<p>Deterministic RAG provides consistent answers...</p>",
     cover: "https://cdn-images-1.medium.com/max/500/1*another-example.jpg",
+    avatar: "https://miro.medium.com/v2/resize:fit:2400/1*default-avatar.png",
     slug: "why-we-built-deterministic-rag-not-agentic",
     username: "aicontributor"
   }
