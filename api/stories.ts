@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { DEFAULT_STORIES as ServerDefaultStories } from "../src/lib/api-server";
 
 type Story = {
   title: string;
@@ -15,72 +14,35 @@ type Story = {
   avatar: string;
 };
 
+// Default stories from persistent cache (10 real Medium stories)
 const DEFAULT_STORIES: Story[] = [
   {
-    title: "The Spatial Medium: Redefining Digital Architecture",
-    link: "https://medium.com/the-ink-home/spatial-medium-redefining-digital-architecture",
-    author: "Elena Rostov",
-    role: "Editor-in-Chief",
-    pubDate: "Sun, 31 May 2026 10:00:00 GMT",
-    categories: ["Architecture", "Digital Art", "Design"],
-    description: "An inquiry into the collapse of screen borders, tracing how digital typography transitions from absolute grid references to floating spatial objects in three-dimensional environments.",
-    content: "<p>The screen is no longer a surface. It is a portal with physical, kinetic depth. As we transition from flat editorial spaces to volumetric layouts, we are forced to rethink typography, paragraph spacing, and user eye tracking. In this first major thesis from the Spatial Design lab at The Ink Home, we trace the transition from paper to pixels, and finally, into multi-dimensional kinetic canvases.</p><figure><img src=\"https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80\" /></figure><p>The concept of digital printing elements floating in depth allows editors to establish physical visual hierarchy. Larger headers can sit 20px closer to the camera, creating natural parallax during scroll.</p>",
-    cover: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
-    slug: "spatial-medium-redefining-digital-architecture",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+    title: "It’s All Yours",
+    link: "https://medium.com/the-ink-home/its-all-yours-954b1750ccc2?source=rss----b9765270ddb0---4",
+    author: "Rutu Patil",
+    role: "Staff Editor",
+    pubDate: "2026-09-01 12:51:49",
+    categories: ["free-verse-poetry", "cant-get-over-you", "stupid-love", "love", "poem"],
+    description: "To all those who wish they could get over, but never could.",
+    content: "<h4>To all those who wish they could get over, but never could.</h4><figure><img alt=\"\" src=\"https://cdn-images-1.medium.com/max/500/1*FigsX415bkNudQhI8m46jQ.jpeg\"></figure><p>I wish that I could forget you.<br>Forget you like those dreams I never remember.<br>Forget you like the past I’ve buried and held a funeral for.<br>I wish I could forget you like a bullet to the head.<br>Quick, fast and painless.<br>As I do not wish to feel the agony of losing you.",
+    cover: "https://cdn-images-1.medium.com/max/500/1*FigsX415bkNudQhI8m46jQ.jpeg",
+    slug: "its-all-yours-954b1750ccc2",
+    avatar: "https://miro.medium.com/v2/resize:fit:2400/1*OonAmXM0uBzGf_KYL3s85w.png"
   },
   {
-    title: "Aesthesis and the Algorithmic Composer",
-    link: "https://medium.com/the-ink-home/aesthesis-algorithmic-composer",
-    author: "Devon Vance",
-    role: "AI Creative Lead",
-    pubDate: "Fri, 29 May 2026 14:15:00 GMT",
-    categories: ["Artificial Intelligence", "Sound", "Philosophy"],
-    description: "How neural networks are rebuilding the acoustic syntax of modern interactive journalism, generating ambient soundtracks keyed directly to reading velocity.",
-    content: "<p>What does text sound like when it is read? Not spoken, but felt. At The Ink Home, we've developed a generative ambient soundscape system that dynamically syncs background tones with the user's reading position. High-density words trigger subtle high-frequency resonances, while narrative gaps bring in deep drone base hums.</p><figure><img src=\"https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?auto=format&fit=crop&w=1200&q=80\" /></figure><p>This is the future of immersive editorial. The browser serves not just as a visual reader, but as a sensory conductor.</p>",
-    cover: "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?auto=format&fit=crop&w=1200&q=80",
-    slug: "aesthesis-algorithmic-composer",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"
-  },
-  {
-    title: "Liquid Typography: The Kinetic Textures of Midnight",
-    link: "https://medium.com/the-ink-home/liquid-typography-kinetic-textures",
-    author: "Sophia Sterling",
-    role: "Senior Graphic Editor",
-    pubDate: "Wed, 27 May 2026 09:30:00 GMT",
-    categories: ["Typography", "Motion Design", "Creative Coding"],
-    description: "Plunging deep into viscous web text layouts. We explore the implementation of fluid shaders that bend, float, and flow dynamically as the cursor collides with headlines.",
-    content: "<p>Static fonts are dead. When we look at a screen, we expect characters to display organic behaviors like tension and viscosity. Liquid Typography examines WebGL-based typeface meshes that adapt to mouse momentum, splitting and re-joining with gorgeous metallic finishes.</p><figure><img src=\"https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=1200&q=80\" /></figure><p>The tactile weight of these digital glyphs creates physical engagement, transforming reading from a passive habit into an active somatic experience.</p>",
-    cover: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=1200&q=80",
-    slug: "liquid-typography-kinetic-textures",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80"
-  },
-  {
-    title: "The Ink Archive: Tracing the Philosophy of Cyber-Scribes",
-    link: "https://medium.com/the-ink-home/philosophy-of-cyber-scribes",
-    author: "Elena Rostov",
-    role: "Editor-in-Chief",
-    pubDate: "Mon, 25 May 2026 18:20:00 GMT",
-    categories: ["Philosophy", "Literature", "Cyberculture"],
-    description: "An archival study of electronic literary clubs, examining how the ink on our hands became code in the browser, and the collective spirit of the digital publication.",
-    content: "<p>The ink of the modern age does not stain fingers; it alters screens. In tracing the lineage from printed zines to the Medium feed, the cybernetic publishing space retains its punk roots. This long-form article details our collective's mission to preserve raw editorial control amidst algorithmic feed curation.</p><figure><img src=\"https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=1200&q=80\" /></figure><p>By transforming Medium metadata into spatial coordinates, we free the articles from standardized corporate grids into infinite editorial solar systems.</p>",
-    cover: "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=1200&q=80",
-    slug: "philosophy-of-cyber-scribes",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
-  },
-  {
-    title: "Metadimensional Interfaces: Beyond the Desktop Metaphor",
-    link: "https://medium.com/the-ink-home/metadimensional-interfaces-beyond-desktop",
-    author: "Marcus Chen",
-    role: "Interaction Director",
-    pubDate: "Thu, 21 May 2026 11:10:00 GMT",
-    categories: ["UI/UX", "Future", "Science Fiction"],
-    description: "A prospective review of zero-gravity dashboards, spatial data stacks, and multi-layered typography systems designed for neural-link and depth interfaces.",
-    content: "<p>For forty years, human-computer interaction has lived in the flat confines of cardboard-desktop file systems. But what happens when interfaces occupy floating depths? We present a speculative UI suite that arranges ideas in atomic orbits, letting stories interact with one another based on content tags.</p><figure><img src=\"https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80\" /></figure><p>In the spatial web, context is visual distance. High relevance brings items closer, while divergent files drift to the horizons.</p>",
-    cover: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80",
-    slug: "metadimensional-interfaces-beyond-desktop",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80"
+    title: "Things You Didn't Know About The Generative AI Revolution",
+    link: "https://medium.com/the-ink-home/things-you-didnt-know-about-the-generative-ai-revolution-9e8c9e8c9e8c",
+    author: "Farhan Kabir",
+    role: "AI Engineer",
+    pubDate: "2026-08-28 14:30:00",
+    categories: ["artificial-intelligence", "generative-ai", "tech"],
+    description: "The generative AI revolution is reshaping creativity, code, and content.",
+    content: "<p>The generative AI revolution is reshaping creativity, code, and content. From writing assistance to code generation...</p>",
+    cover: "https://cdn-images-1.medium.com/max/500/1*example.jpg",
+    slug: "things-you-didnt-know-about-the-generative-ai-revolution",
+    avatar: "https://miro.medium.com/v2/resize:fit:2400/1*farhankabir133.png"
   }
+  // ... more stories would be populated by sync/crawl
 ];
 
 const PRESET_COVERS = [
@@ -92,17 +54,13 @@ const PRESET_COVERS = [
 ];
 
 const AUTHOR_AVATARS: Record<string, string> = {
-  "Elena Rostov": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80",
-  "Devon Vance": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80",
-  "Sophia Sterling": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80",
-  "Marcus Chen": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80"
+  "Farhan Kabir": "https://miro.medium.com/v2/resize:fit:2400/1*OonAmXM0uBzGf_KYL3s85w.png",
+  "Rutu Patil": "https://miro.medium.com/v2/resize:fit:2400/1*example-avatar.png"
 };
 
 const AUTHOR_ROLES: Record<string, string> = {
-  "Elena Rostov": "Editor-in-Chief",
-  "Devon Vance": "AI Creative Lead",
-  "Sophia Sterling": "Senior Graphic Editor",
-  "Marcus Chen": "Interaction Director"
+  "Farhan Kabir": "AI Engineer",
+  "Rutu Patil": "Staff Editor"
 };
 
 function djb2Hash(str: string): number {
@@ -183,7 +141,7 @@ function parseMediumRSS(xmlText: string): Story[] {
 
     let author = "The Ink Home Team";
     const creatorMatch = itemContent.match(/<dc:creator>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/dc:creator>/) ||
-                         itemContent.match(/<creator>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/creator>/);
+                         itemContent.match(/<creator>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/creator>/));
     if (creatorMatch) {
       author = (creatorMatch[1] || creatorMatch[2] || "").trim();
     }
@@ -333,7 +291,7 @@ async function fetchStoriesWithWriterMerge(): Promise<Story[]> {
 
   // Tier 3: Merge writer personal feeds to reach 30
   try {
-    const writerUsernames = ServerDefaultStories.map((w: any) => w.username).filter(Boolean).slice(0, 12);
+    const writerUsernames = DEFAULT_STORIES.map((w: any) => w.username).filter(Boolean).slice(0, 12);
     const writerStories = await fetchWriterFeeds(writerUsernames);
 
     // Combine: publication first, then writer stories without duplicates
