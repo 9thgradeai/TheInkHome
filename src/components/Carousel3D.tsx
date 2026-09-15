@@ -328,7 +328,7 @@ export default function Carousel3D({
                 {/* Top: Image Section */}
                 <div className="relative w-full h-28 sm:h-36 md:h-40 rounded-none overflow-hidden mb-3 sm:mb-4 border border-white/5 z-10 select-none">
                   <img
-                    src={optimizeImageUrl(story.cover || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80", 720)}
+                    src={optimizeImageUrl(story.cover || "https://cdn-images-1.medium.com/proxy/1*TGH72Nnw24QL3iV9IOm4VA.png", 720)}
                     alt={story.title}
                     referrerPolicy="no-referrer"
                     width="400"
@@ -339,7 +339,7 @@ export default function Carousel3D({
                     loading="lazy"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
-                      target.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80";
+                      target.src = "https://cdn-images-1.medium.com/proxy/1*TGH72Nnw24QL3iV9IOm4VA.png";
                     }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/20" />
@@ -372,7 +372,7 @@ export default function Carousel3D({
                     <div className="flex items-center justify-between gap-2 mb-1.5 sm:mb-2">
                       <div className="flex items-center gap-1.5 sm:gap-2">
                         <AvatarImage
-                          src={story.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde"}
+                          src={story.avatar || ""}
                           alt={story.author}
                           className="w-4 h-4 sm:w-5 sm:h-5 rounded-none object-cover border border-white/10"
                         />

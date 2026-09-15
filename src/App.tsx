@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "./lib/motion";
 import { Story } from "./types";
 
 const Carousel3D = lazy(() => import("./components/Carousel3D"));
@@ -17,6 +17,7 @@ import { Logo } from "./components/Logo";
 import DataStreamBackground from "./components/DataStreamBackground";
 import CursorGlow from "./components/CursorGlow";
 import CinematicLoader from "./components/CinematicLoader";
+import { Wave3Features } from "./components/Wave3Features";
 import FALLBACK_STORIES from "./data/fallbackStories";
 import FALLBACK_ABOUT from "./data/fallbackAbout";
 import { 
@@ -483,10 +484,10 @@ export default function App() {
            <CinematicLoader onComplete={handleCinematicComplete} isWelcomeHome={isWelcomeHome} />
          )}
        
-       <DataStreamBackground baseHue={bgMode === "stellar" ? 190 : bgMode === "ink" ? 235 : bgMode === "forest" ? 35 : bgMode === "constellation" ? 160 : 190} />
-
-       {/* Cursor-reactive ambient glow — tints with the active atmosphere */}
-       <CursorGlow />
+ {/* Wave 3: reading progress + dark toggle + ⌘K search */}
+        <Wave3Features onNavigate={(path) => { window.history.pushState(null, "", path); window.dispatchEvent(new PopStateEvent("popstate")); }} />
+        {/* Cursor-reactive ambient glow — tints with the active atmosphere */}
+        <CursorGlow />
 
        {/* Carbon & Noise Texture Overlays */}
        <div className="absolute inset-0 pointer-events-none opacity-[0.03] contrast-150 mix-blend-overlay carbon-texture z-[2]" />
@@ -568,21 +569,21 @@ export default function App() {
         
         {/* VIEW 1: CINEMATIC PORTAL LANDING PAGE */}
         {!entered ? (
-          <motion.div
+<motion.div
             key="landing-page"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, y: -40 }}
             transition={{ duration: 0.8, ease: "easeInOut" }}
             onMouseMove={handleMouseMove}
-            className="relative min-h-screen flex flex-col justify-between z-10 px-6 py-8"
+            className="relative min-h-screen overflow-hidden"
           >
             {/* Top Logotype Row */}
             <motion.header
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.05, ease: "easeOut" }}
-              className="w-full flex items-center justify-between max-w-6xl mx-auto"
+              className="relative w-full flex items-center justify-between max-w-6xl mx-auto z-10 px-6"
             >
               <div className="flex items-center gap-2.5">
                 <Logo size={46} textColor="text-slate-200" />
@@ -591,77 +592,74 @@ export default function App() {
                 href="https://medium.com/the-ink-home" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-slate-400 hover:text-[var(--atmo-text)] hover:border-[var(--atmo-border)] transition-all border border-transparent px-3 py-1.5 rounded bg-white/5"
+                className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-slate-400 hover:text-[var(--atmo-text)] hover:border-[var(--atmo-border)] transition-all border border-transparent px-3 py-1.5 rounded bg-transparent"
                 id="landing-medium-link"
               >
                 MEDIUM EDITION <ExternalLink className="w-3 h-3 text-[var(--atmo-text)]" />
               </a>
             </motion.header>
 
-            {/* Core Cinematic Hero */}
-            <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6 sm:space-y-8 max-w-4xl mx-auto my-8 sm:my-12">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.05 }}
-                className="space-y-6"
-              >
-                {/* Visual Label Banner */}
-                <div className="inline-block px-4 py-1.5 bg-[var(--atmo-surface)] border border-[var(--atmo-border)] rounded text-[10px] font-bold tracking-[0.2em] text-[var(--atmo-text)] uppercase">
-                  Featured Edition — Vol. 082
-                </div>
-                {/* Main Heading title with custom gradient styling and 3D kinetic interaction */}
-          <h1 
-            style={{
-              letterSpacing: `${-0.05 + Math.abs(coords.x) * 0.03}em`,
-              transform: `perspective(1000px) rotateY(${coords.x * 12}deg) rotateX(${-coords.y * 12}deg) translateY(${scrollY * -0.1}px)`,
-              textShadow: `${-coords.x * 12}px ${-coords.y * 12}px 24px var(--glow-color)`,
-              transition: "transform 0.08s ease-out, letter-spacing 0.15s ease-out, text-shadow 0.15s ease-out"
-            }}
-            className="text-5xl sm:text-6xl md:text-8xl lg:text-[110px] leading-[0.85] font-black tracking-tighter mb-4 sm:mb-6 italic uppercase font-display bg-gradient-to-r from-white via-[var(--atmo-text)] to-[var(--atmo-text)] bg-clip-text text-transparent select-none"
-          >
-            The Ink<br />Home
-          </h1>
-          <p className="max-w-xl mx-auto text-xs sm:text-sm md:text-base text-slate-400 leading-relaxed font-light tracking-wide px-4 sm:px-0">
-            Where spatial typography, code shaders, and cyber-philosophical stories merge into floating geometric objects in space.
-          </p>
-              </motion.div>
- 
-              {/* Enter CTA Trigger BUTTON */}
-<motion.div
-                   initial={{ opacity: 0, y: 15, scale: 0.95 }}
-                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                   transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
-                 >
-                   <button
-                     onClick={enterWebsite}
-                     className="px-6 py-3 sm:px-8 sm:py-4 bg-white text-black font-extrabold uppercase tracking-[0.2em] text-[10px] sm:text-[11px] hover:bg-[var(--atmo-text)] hover:shadow-[0_0_35px_var(--atmo-glow)] transition-all duration-300 cursor-pointer flex items-center gap-2 z-20 mx-auto"
-                     id="enter-portal-btn"
-                   >
-                     Enter The Ink Home
-                     <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black" />
-                   </button>
-                 </motion.div>
-            </div>
+{/* Core Cinematic Hero — Video Background */}
+            <section className="hero relative min-h-[100svh] overflow-hidden">
+              <video
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover z-0"
+                src="/hero.webm"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-black/40 z-[1]" />
 
-            {/* Bottom Section: Auto-scrolling Featured Stories Cinematic strip */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className="w-full max-w-6xl mx-auto"
-            >
-              {loading ? (
-                <div className="flex justify-center py-4">
-                  <div className="w-4 h-4 border border-[var(--atmo-text)] border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : (
-                <div className="space-y-3">
+<div className="relative z-10 px-6 pt-8 pb-4 space-y-6 hero-content">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.05 }}
+                  className="max-w-6xl mx-auto space-y-8"
+                >
+                  <div className="inline-block px-5 py-2 bg-white/8 border border-white/15 rounded text-[11px] font-bold tracking-[0.25em] text-white/95 uppercase backdrop-blur-md drop-shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+                    Featured Edition — Vol. 082
+                  </div>
+                  <h1
+                    style={{
+                      letterSpacing: `${-0.05 + Math.abs(coords.x) * 0.03}em`,
+                      transform: `perspective(1000px) rotateY(${coords.x * 12}deg) rotateX(${-coords.y * 12}deg) translateY(${scrollY * -0.1}px)`,
+                      textShadow: `${-coords.x * 12}px ${-coords.y * 12}px 24px rgba(0,0,0,0.6), 0 0 60px rgba(6,182,212,0.2)`,
+                      transition: "transform 0.08s ease-out, letter-spacing 0.15s ease-out, text-shadow 0.15s ease-out"
+                    }}
+                    className="text-5xl sm:text-6xl md:text-8xl lg:text-[110px] leading-[0.85] font-black tracking-tighter mb-4 sm:mb-6 italic uppercase font-display bg-gradient-to-r from-white via-white to-white/85 bg-clip-text text-transparent select-none drop-shadow-[0_4px_30px_rgba(0,0,0,0.7)]"
+                  >
+                    The Ink<br />Home
+                  </h1>
+                  <p
+                    style={{ textShadow: "0 2px 30px rgba(0,0,0,0.8), 0 0 40px rgba(6,182,212,0.15)" }}
+                    className="max-w-xl mx-auto text-sm sm:text-base md:text-lg text-white leading-relaxed font-light tracking-wide px-4 sm:px-0 drop-shadow-lg"
+                  >
+                    Where spatial typography, code shaders, and cyber-philosophical stories merge into floating geometric objects in space.
+                  </p>
+                  <motion.div
+                    initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+                    className="relative z-10"
+                  >
+                    <button
+                      onClick={enterWebsite}
+                      className="enter-btn px-8 py-4 sm:px-10 sm:py-5 bg-white/10 backdrop-blur-md border border-white/20 text-white font-extrabold uppercase tracking-[0.2em] text-[11px] sm:text-[12px] hover:bg-white/20 hover:border-[var(--atmo-text)] hover:shadow-[0_0_40px_var(--atmo-glow)] transition-all duration-500 cursor-pointer flex items-center gap-3 z-20 mx-auto rounded-none"
+                      id="enter-portal-btn"
+                    >
+                      Enter The Ink Home
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-4 text-white" />
+                    </button>
+                  </motion.div>
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.35 }}
-                    className="flex items-center justify-between text-[9px] sm:text-[10px] font-mono tracking-widest uppercase text-slate-500 px-2 sm:px-0"
+                    className="flex items-center justify-between text-[9px] sm:text-[10px] font-mono tracking-widest uppercase text-slate-400 px-2 sm:px-0"
                   >
                     <span className="flex items-center gap-1.5 sm:gap-2">
                       <Radio className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[var(--atmo-text)]" />
@@ -669,154 +667,172 @@ export default function App() {
                     </span>
                     <span className="hidden sm:inline">Scroll or Click items to read</span>
                   </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                    className="max-w-4xl mx-auto mb-3 sm:mb-4 px-4 sm:px-0"
+                  >
+                    <Suspense fallback={null}>
+                      <Subscribe />
+                    </Suspense>
+                  </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.5, delay: 0.45 }}
+                    className="text-center"
+                  >
+                    <a
+                      href="https://medium.com/the-ink-home"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-[10px] sm:text-[11px] uppercase tracking-widest text-slate-500 hover:text-[var(--atmo-text)] hover:border-[var(--atmo-border)] transition-all border border-transparent px-3 py-1.5 rounded bg-transparent inline-block"
+                      id="hero-read-medium-link"
+                    >
+                      Read on Medium <ExternalLink className="w-3 h-3 inline-block ml-1 text-[var(--atmo-text)]" />
+                    </a>
+                  </motion.div>
+                </motion.div>
+              </div>
+            </section>
 
-                  {/* Horizontal Auto-Scroller ticker containing stories summaries */}
-                  {/* Subscribe card (inline) */}
-<motion.div
-                     initial={{ opacity: 0, y: 20 }}
-                     animate={{ opacity: 1, y: 0 }}
-                     transition={{ duration: 0.5, delay: 0.4 }}
-                     className="max-w-4xl mx-auto mb-3 sm:mb-4 px-4 sm:px-0"
-                   >
-                     <Suspense fallback={null}>
-                       <Subscribe />
-                     </Suspense>
-                   </motion.div>
-                   
-                    {/* The Bento Archive */}
-                   <motion.div
-                     initial={{ opacity: 0, y: 30 }}
-                     animate={{ opacity: 1, y: 0 }}
-                     transition={{ duration: 0.6, delay: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                     className="mt-6 sm:mt-8"
-                   >
-                     <div className="flex items-center justify-between mb-4 px-2 sm:px-0">
-                       <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/70">
-                         The Bento Archive
-                       </h3>
-                       <span className="text-[9px] text-slate-500">{stories.length} Stories</span>
-                     </div>
-                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6">
-                       {stories.map((story, index) => (
-                         <motion.div
-                           key={story.slug}
-                           className="group cursor-pointer glass-card tactile-card ripple-host overflow-hidden flex flex-col justify-between min-h-[18rem] sm:min-h-[22rem]"
-                           onClick={() => {
-                             setSelectedStory(story);
-                             setEntered(true);
-                             navigateTo(`/story/${story.slug}`);
-                           }}
-                           initial={{ opacity: 0, y: 20 }}
-                           animate={{ opacity: 1, y: 0 }}
-                           transition={{ type: "spring", stiffness: 260, damping: 20, delay: index * 0.03 }}
-                           id={`grid-card-${story.slug}`}
-                           whileHover={{ y: -4, rotateX: 2, rotateY: -2, scale: 1.02 }}
-                         >
-                           {/* Media Section */}
-                           <div className="relative w-full h-32 sm:h-44 overflow-hidden border-b border-white/5">
-                              <img
-                                src={optimizeImageUrl(story.cover || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80", 640)}
-                                alt={story.title}
-                                referrerPolicy="no-referrer"
-                                width="400"
-                                height="300"
-                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                decoding="async"
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                                loading="lazy"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80";
-                                }}
-                             />
-                             <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/10" />
-                             
-                             {/* Floating Date Badge */}
-                             <span className="absolute top-3 left-3 px-2 py-0.5 rounded-none font-mono text-[9px] uppercase tracking-wider bg-black border border-white/5 text-slate-300">
-                               {new Date(story.pubDate).toLocaleDateString("en-US", {
-                                 month: "short",
-                                 day: "numeric",
-                               })}
-                             </span>
-                      
-                             {/* Primary Tag */}
-                             {story.categories[0] && (
-                               <span className="absolute bottom-3 right-3 px-2.5 py-0.5 rounded-none font-mono text-[9px] uppercase tracking-wider bg-black/80 text-[var(--glow-text)] border border-[var(--glow-text)]/25">
-                                 {story.categories[0]}
-                               </span>
-                             )}
-                           </div>
-                      
-                           {/* Data Section */}
-                           <div className="flex-1 p-3 sm:p-5 flex flex-col justify-between bg-black/20">
-                             <div>
-                               {/* Author Line */}
-                               <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
-                                 <AvatarImage
-                                   src={story.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde"}
-                                   alt={story.author}
-                                   className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-none object-cover border border-white/5"
-                                 />
-                                 <span className="text-[10px] sm:text-[11px] font-mono text-slate-400">
-                                   {story.author}
-                                 </span>
-                               </div>
-   
-                               {/* Title */}
-                               <h3 className="font-sans font-medium text-white text-sm sm:text-base group-hover:text-[var(--glow-text)] line-clamp-2 leading-snug transition-colors">
-                                 {story.title}
-                               </h3>
-   
-                               {/* Snippet Description */}
-                               <p className="text-[11px] sm:text-xs mt-1.5 sm:mt-2.5 text-slate-400 line-clamp-2 leading-relaxed font-light hidden sm:block">
-                                 {story.description}
-                               </p>
-                             </div>
-   
-                             <div className="flex items-center justify-between pt-2 sm:pt-3 border-t border-white/5 text-[10px] sm:text-[11px] font-mono mt-2 sm:mt-4">
-                               <span className="text-slate-500">
-                                 by {story.role || "Staff"}
-                               </span>
-                                
-                               {/* Floating Like & Save quick controls */}
-                               <div className="flex items-center gap-2 sm:gap-3">
-                                 <button
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     handleToggleLike(story.slug);
-                                   }}
-                                   className={`flex items-center gap-1 transition-colors p-1.5 sm:p-1 cursor-pointer hover:text-[var(--glow-text)] min-w-[28px] sm:min-w-[32px] min-h-[28px] sm:min-h-[32px] justify-center ${likedSlugs.includes(story.slug) ? "text-[var(--glow-text)] font-bold" : "text-slate-500"}`}
-                                   title={likedSlugs.includes(story.slug) ? "Unlike" : "Like"}
-                                 >
-                                   <Heart className={`w-3.5 h-3.5 ${likedSlugs.includes(story.slug) ? "fill-current text-[var(--glow-text)]" : ""}`} />
-                                   <span className="text-[10px] sm:text-[11px]">{getLikesCount(story.title, likedSlugs.includes(story.slug))}</span>
-                                 </button>
-                                 
-                                 <button
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     handleToggleSave(story.slug);
-                                   }}
-                                   className={`flex items-center gap-1 transition-colors p-1.5 sm:p-1 cursor-pointer hover:text-[var(--glow-text)] min-w-[28px] sm:min-w-[32px] min-h-[28px] sm:min-h-[32px] justify-center ${savedSlugs.includes(story.slug) ? "text-[var(--glow-text)]" : "text-slate-500"}`}
-                                   title={savedSlugs.includes(story.slug) ? "Remove Bookmark" : "Bookmark Story"}
-                                 >
-                                   <Bookmark className={`w-3.5 h-3.5 ${savedSlugs.includes(story.slug) ? "fill-current" : ""}`} />
-                                 </button>
-
-                                 <span className="flex items-center gap-1 text-[var(--glow-text)] font-bold group-hover:text-white transition-colors ml-0.5 sm:ml-1 text-[10px] sm:text-[11px]">
-                                   Read
-                                   <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                                 </span>
-                               </div>
-                             </div>
-                           </div>
-                         </motion.div>
-                       ))}
-                     </div>
-                    </motion.div>
-                 </div>
-              )}
-            </motion.div>
+            {/* Story Section */}
+            <section className="story-section relative">
+              <DataStreamBackground baseHue={bgMode === "stellar" ? 190 : bgMode === "ink" ? 235 : bgMode === "forest" ? 35 : bgMode === "constellation" ? 160 : 190} />
+              <div className="relative z-10 px-6 pt-8">
+                 <motion.div
+                   initial={{ opacity: 0, y: 30 }}
+                   animate={{ opacity: 1, y: 0 }}
+                   transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                   className="w-full max-w-6xl mx-auto"
+                 >
+                  {loading ? (
+                    <div className="flex justify-center py-4">
+                      <div className="w-4 h-4 border border-[var(--atmo-text)] border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                        className="mt-6 sm:mt-8"
+                      >
+                        <div className="flex items-center justify-between mb-4 px-2 sm:px-0">
+                          <h2 className="text-xl sm:text-3xl md:text-4xl font-sans font-bold text-white tracking-tight uppercase italic">
+                            The Bento <span className="text-[var(--atmo-text)]">Grid</span>
+                          </h2>
+                          <span className="text-[9px] text-slate-500">{stories.length} Stories</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6">
+                          {stories.map((story, index) => (
+                            <motion.div
+                              key={story.slug}
+                              className="group cursor-pointer glass-card tactile-card ripple-host overflow-hidden flex flex-col justify-between min-h-[18rem] sm:min-h-[22rem]"
+                              onClick={() => {
+                                setSelectedStory(story);
+                                setEntered(true);
+                                navigateTo(`/story/${story.slug}`);
+                              }}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ type: "spring", stiffness: 260, damping: 20, delay: index * 0.03 }}
+                              id={`grid-card-${story.slug}`}
+                              whileHover={{ y: -4, rotateX: 2, rotateY: -2, scale: 1.02 }}
+                            >
+                              <div className="relative w-full h-32 sm:h-44 overflow-hidden border-b border-white/5">
+                                <img
+                                  src={optimizeImageUrl(story.cover || "https://cdn-images-1.medium.com/proxy/1*TGH72Nnw24QL3iV9IOm4VA.png", 640)}
+                                  alt={story.title}
+                                  referrerPolicy="no-referrer"
+                                  width="400"
+                                  height="300"
+                                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                  decoding="async"
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 bg-zinc-900"
+                                  loading={index < 4 ? "eager" : "lazy"}
+                                  // @ts-ignore
+                                  fetchPriority={index < 4 ? "high" : "auto"}
+                                  onError={(e) => {
+                                    const t = e.target as HTMLImageElement;
+                                    if (t.src !== "https://cdn-images-1.medium.com/proxy/1*TGH72Nnw24QL3iV9IOm4VA.png") t.src = "https://cdn-images-1.medium.com/proxy/1*TGH72Nnw24QL3iV9IOm4VA.png";
+                                  }}
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/10" />
+                                <span className="absolute top-3 left-3 px-2 py-0.5 rounded-none font-mono text-[9px] uppercase tracking-wider bg-black border border-white/5 text-slate-300">
+                                  {new Date(story.pubDate).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                  })}
+                                </span>
+                                {story.categories[0] && (
+                                  <span className="absolute bottom-3 right-3 px-2.5 py-0.5 rounded-none font-mono text-[9px] uppercase tracking-wider bg-black/80 text-[var(--glow-text)] border border-[var(--glow-text)]/25">
+                                    {story.categories[0]}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex-1 p-3 sm:p-5 flex flex-col justify-between bg-black/20">
+                                <div>
+                                  <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+                                    <AvatarImage
+                                      src={story.avatar || ""}
+                                      alt={story.author}
+                                      className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-none object-cover border border-white/5"
+                                    />
+                                    <span className="text-[10px] sm:text-[11px] font-mono text-slate-400">
+                                      {story.author}
+                                    </span>
+                                  </div>
+                                  <h3 className="font-sans font-medium text-white text-sm sm:text-base group-hover:text-[var(--glow-text)] line-clamp-2 leading-snug transition-colors">
+                                    {story.title}
+                                  </h3>
+                                  <p className="text-[11px] sm:text-xs mt-1.5 sm:mt-2.5 text-slate-400 line-clamp-2 leading-relaxed font-light hidden sm:block">
+                                    {story.description}
+                                  </p>
+                                </div>
+                                <div className="flex items-center justify-between pt-2 sm:pt-3 border-t border-white/5 text-[10px] sm:text-[11px] font-mono mt-2 sm:mt-4">
+                                  <span className="text-slate-500">
+                                    by {story.role || "Staff"}
+                                  </span>
+                                  <div className="flex items-center gap-2 sm:gap-3">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleToggleLike(story.slug);
+                                      }}
+                                      className={`flex items-center gap-1 transition-colors p-1.5 sm:p-1 cursor-pointer hover:text-[var(--glow-text)] min-w-[28px] sm:min-w-[32px] min-h-[28px] sm:min-h-[32px] justify-center ${likedSlugs.includes(story.slug) ? "text-[var(--glow-text)] font-bold" : "text-slate-500"}`}
+                                      title={likedSlugs.includes(story.slug) ? "Unlike" : "Like"}
+                                    >
+                                      <Heart className={`w-3.5 h-3.5 ${likedSlugs.includes(story.slug) ? "fill-current text-[var(--glow-text)]" : ""}`} />
+                                      <span className="text-[10px] sm:text-[11px]">{getLikesCount(story.title, likedSlugs.includes(story.slug))}</span>
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleToggleSave(story.slug);
+                                      }}
+                                      className={`flex items-center gap-1 transition-colors p-1.5 sm:p-1 cursor-pointer hover:text-[var(--glow-text)] min-w-[28px] sm:min-w-[32px] min-h-[28px] sm:min-h-[32px] justify-center ${savedSlugs.includes(story.slug) ? "text-[var(--glow-text)]" : "text-slate-500"}`}
+                                      title={savedSlugs.includes(story.slug) ? "Remove Bookmark" : "Bookmark Story"}
+                                    >
+                                      <Bookmark className={`w-3.5 h-3.5 ${savedSlugs.includes(story.slug) ? "fill-current" : ""}`} />
+                                    </button>
+                                    <span className="flex items-center gap-1 text-[var(--glow-text)] font-bold group-hover:text-white transition-colors ml-0.5 sm:ml-1 text-[10px] sm:text-[11px]">
+                                      Read
+                                      <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    </div>
+                  )}
+                </motion.div>
+              </div>
+            </section>
             
           </motion.div>
         ) : (

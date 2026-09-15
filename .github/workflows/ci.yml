@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint-build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test --if-present
+
+  e2e-backend:
+    runs-on: ubuntu-latest
+    needs: lint-build-test
+    services: {}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: |
+          npm run dev &
+          sleep 8
+          curl -sf http://localhost:3000/api/health | grep -q '"status":"ok"'
+          curl -sf http://localhost:3000/api/stories | grep -q '"stories"'
+          curl -sf http://localhost:3000/api/about | grep -q '"description"'
+          curl -sf "http://localhost:3000/api/ai/search?q=editors" | grep -q '"results"'
+          echo "Backend smoke passed"
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}

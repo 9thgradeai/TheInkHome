@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { motion } from "motion/react";
+import { motion } from "../lib/motion";
 import { Story } from "../types";
 import { ArrowUpRight, Heart, Bookmark } from "lucide-react";
 import { getLikesCount } from "../lib/interaction";
@@ -96,18 +96,20 @@ export default function StoryGrid({
               {/* Media Section */}
               <div className="relative w-full h-32 sm:h-44 overflow-hidden border-b border-white/5">
                 <img
-                  src={optimizeImageUrl(story.cover || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80", 720)}
+                  src={optimizeImageUrl(story.cover || "https://cdn-images-1.medium.com/proxy/1*TGH72Nnw24QL3iV9IOm4VA.png", 720)}
                   alt={story.title}
                   referrerPolicy="no-referrer"
                   width="400"
                   height="300"
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   decoding="async"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                  loading="lazy"
+                  loading={index < 4 ? "eager" : "lazy"}
+                  // @ts-ignore
+                  fetchPriority={index < 4 ? "high" : "auto"}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 bg-zinc-900"
                   onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80";
+                    const t = e.target as HTMLImageElement;
+                    if (t.src !== "https://cdn-images-1.medium.com/proxy/1*TGH72Nnw24QL3iV9IOm4VA.png") t.src = "https://cdn-images-1.medium.com/proxy/1*TGH72Nnw24QL3iV9IOm4VA.png";
                   }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/10" />
@@ -134,7 +136,7 @@ export default function StoryGrid({
                   {/* Author Line */}
                   <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
                     <AvatarImage 
-                      src={story.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde"} 
+                      src={story.avatar || ""} 
                       alt={story.author} 
                       className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-none object-cover border border-white/5" 
                     />

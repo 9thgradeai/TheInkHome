@@ -6,13 +6,12 @@
 export function optimizeImageUrl(url: string, maxWidth = 720): string {
   if (!url) return url;
 
-  // Medium CDN: downscale AND proxy through our origin (removes third-party
-  // cookies and lets the CDN edge-cache the bytes). See api/img.ts.
-  if (url.includes("cdn-images-1.medium.com")) {
-    const resized = url
+  // Medium CDN: downscale directly (no proxy — avoids 404/flicker in dev and when
+  // server.ts has no /api/img handler). Vercel edge handles /api/img for cookie-less cache separately.
+  if (url.includes("cdn-images-1.medium.com") || url.includes("miro.medium.com")) {
+    return url
       .replace(/\/max\/\d+\//, `/max/${maxWidth}/`)
       .replace(/\/resize:fit:\d+/, `/resize:fit:${maxWidth}`);
-    return `/api/img?u=${encodeURIComponent(resized)}`;
   }
 
   // Unsplash: rewrite width + quality
@@ -42,11 +41,15 @@ export function optimizeImageUrl(url: string, maxWidth = 720): string {
  */
 export function optimizeContentHtml(html: string, maxWidth = 720): string {
   return html
-    .replace(/<img\s/g, '<img loading="lazy" decoding="async" ')
+    .replace(/<img\s/g, '<img loading="lazy" decoding="async" referrerpolicy="no-referrer" ')
     .replace(/(<img[^>]+src=")([^"]+cdn-images-1\.medium\.com[^"]+)/g, (_m, pre, src) => {
       const optimized = src
         .replace(/\/max\/\d+\//, `/max/${maxWidth}/`)
         .replace(/\/resize:fit:\d+/, `/resize:fit:${maxWidth}`);
-      return `${pre}/api/img?u=${encodeURIComponent(optimized)}`;
+      return `${pre}${optimized}`;
+    })
+    .replace(/(<img[^>]+src=")([^"]+miro\.medium\.com[^"]+)/g, (_m, pre, src) => {
+      const optimized = src.replace(/\/resize:fit:\d+/, `/resize:fit:${maxWidth}`);
+      return `${pre}${optimized}`;
     });
 }

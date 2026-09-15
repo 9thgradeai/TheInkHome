@@ -1,16 +1,16 @@
 import { KnowledgeDoc, SearchResult, ChatResponse, ActionItem } from "./types";
-import { keywordSearch, fullTextSearch, buildSearchIndex } from "./search";
-import { loadAllDocuments, getDocUrl, getDocTypeLabel } from "./knowledge";
+import { loadAllDocumentsServer, getDocUrl, getDocTypeLabel } from "./knowledge";
 import { SYSTEM_PROMPT } from "./system-prompt";
+import { keywordSearch, fullTextSearch, buildSearchIndex } from "./search";
 
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_MODEL = "openai/gpt-oss-20b";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 let documents: KnowledgeDoc[] = [];
 let embeddings: Record<string, number[]> = {};
 
 export async function initializeKnowledgeBase() {
-  documents = await loadAllDocuments();
+  documents = await loadAllDocumentsServer();
   buildSearchIndex(documents);
   embeddings = {};
 }
@@ -32,6 +32,20 @@ export function detectIntent(query: string): { intent: string; confidence: numbe
 
 export function searchDocuments(query: string, limit = 8): SearchResult[] {
   if (documents.length === 0) return [];
+  const ql = query.toLowerCase();
+  // Intent-aware short-circuit — ensures real Medium editors/writers/founder data is returned
+  if (ql.includes("editor")) {
+    const eds = documents.filter((d) => d.path.includes("editors")).slice(0, limit) as SearchResult[];
+    if (eds.length) return eds.map((d) => ({ ...d, score: 0 }));
+  }
+  if (ql.includes("writer") || ql.includes("author")) {
+    const wrs = documents.filter((d) => d.path.includes("writers")).slice(0, limit) as SearchResult[];
+    if (wrs.length) return wrs.map((d) => ({ ...d, score: 0 }));
+  }
+  if (ql.includes("founder") || ql.includes("farhan")) {
+    const f = documents.filter((d) => d.path.includes("founder")).slice(0, limit) as SearchResult[];
+    if (f.length) return f.map((d) => ({ ...d, score: 0 }));
+  }
   const keywordResults = keywordSearch(query, limit);
   const fulltextResults = fullTextSearch(query, limit);
   const scored = new Map<string, { doc: SearchResult; scores: number[] }>();
@@ -45,14 +59,19 @@ export function searchDocuments(query: string, limit = 8): SearchResult[] {
   };
   for (const r of keywordResults) add(r);
   for (const r of fulltextResults) add(r);
-  const ranked = Array.from(scored.values())
+  let ranked = Array.from(scored.values())
     .map(({ doc, scores }) => {
       const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-      return { ...doc, score: avg };
+      return { ...doc, score: avg ?? 0.5 };
     })
-    .filter((r) => r.score > 0.05)
-    .sort((a, b) => b.score - a.score)
+    .filter((r) => r.score < 0.85)
+    .sort((a, b) => a.score - b.score)
     .slice(0, limit);
+  if (ranked.length === 0 && documents.length > 0) {
+    // Fallback: return publication/overview docs so Groq always has context
+    ranked = documents.filter((d) => d.path.includes("publication") || d.path.includes("founder")).slice(0, 3) as SearchResult[];
+    if (ranked.length === 0) ranked = (documents.slice(0, 3) as SearchResult[]);
+  }
   return ranked;
 }
 

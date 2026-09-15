@@ -2,7 +2,7 @@ import { KnowledgeDoc, SearchResult, ChatResponse, ActionItem } from "./types";
 import { loadAllDocuments, getDocUrl, getDocTypeLabel } from "./knowledge";
 import { SYSTEM_PROMPT } from "./system-prompt";
 
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_MODEL = "openai/gpt-oss-20b";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 let documents: KnowledgeDoc[] = [];
@@ -79,6 +79,19 @@ export function detectIntent(query: string): { intent: string; confidence: numbe
 
 export function searchDocuments(query: string, limit = 8): SearchResult[] {
   if (documents.length === 0) return [];
+  const ql = query.toLowerCase();
+  if (ql.includes("editor")) {
+    const eds = documents.filter((d) => d.path.includes("editors")).slice(0, limit) as SearchResult[];
+    if (eds.length) return eds.map((d) => ({ ...d, score: 0.9 }));
+  }
+  if (ql.includes("writer") || ql.includes("author")) {
+    const wrs = documents.filter((d) => d.path.includes("writers")).slice(0, limit) as SearchResult[];
+    if (wrs.length) return wrs.map((d) => ({ ...d, score: 0.9 }));
+  }
+  if (ql.includes("founder") || ql.includes("farhan")) {
+    const f = documents.filter((d) => d.path.includes("founder")).slice(0, limit) as SearchResult[];
+    if (f.length) return f.map((d) => ({ ...d, score: 0.9 }));
+  }
   const keywordResults = keywordSearch(query, limit);
   const fulltextResults = fullTextSearch(query, limit);
   const scored = new Map<string, { doc: SearchResult; scores: number[] }>();

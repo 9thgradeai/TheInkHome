@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "../lib/motion";
 import { Search, X, BookOpen, CornerDownLeft, ArrowUp, ArrowDown, Sparkles } from "lucide-react";
 import { Story } from "../types";
 

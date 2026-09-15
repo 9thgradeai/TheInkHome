@@ -1,3 +1,5 @@
+import dotenv from "dotenv";
+dotenv.config();
 import express from "express";
 import path from "path";
 import fs from "fs";
@@ -12,18 +14,37 @@ import {
   parseMediumRSS,
   djb2Hash,
 } from "./src/lib/api-server";
-import { initializeKnowledgeBase, searchDocuments, generateRAGResponse } from "./src/lib/ai/rag";
+import { FALLBACK_COVER } from "./src/lib/medium-fetch";
+import { initializeKnowledgeBase, searchDocuments, generateRAGResponse, getDocuments } from "./src/lib/ai/rag";
 
 const AVATAR_CACHE_TTL = 1000 * 60 * 60;
 
 const avatarCache = new Map<string, { url: string; expiresAt: number }>();
+
+const STORIES_CACHE_FILE = path.join(process.cwd(), ".cache", "medium-stories.json");
+function loadPersistentStories(): any[] {
+  try {
+    if (fs.existsSync(STORIES_CACHE_FILE)) {
+      const raw = fs.readFileSync(STORIES_CACHE_FILE, "utf8");
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length) return parsed;
+    }
+  } catch {}
+  return [];
+}
+function savePersistentStories(stories: any[]) {
+  try {
+    fs.mkdirSync(path.dirname(STORIES_CACHE_FILE), { recursive: true });
+    fs.writeFileSync(STORIES_CACHE_FILE, JSON.stringify(stories.slice(0, 50), null, 2));
+  } catch {}
+}
 
 let cache: {
   stories: any[];
   about: any;
   lastUpdated: number;
 } = {
-  stories: [],
+  stories: loadPersistentStories(),
   about: null,
   lastUpdated: 0,
 };
@@ -131,12 +152,19 @@ async function syncData() {
     console.warn("syncData about fetch failed:", e);
   }
 
+  // Accumulate: keep prior cached stories beyond the 10-item RSS window (production-grade pagination over time)
+  const merged = [...finalStories];
+  for (const prev of cache.stories) {
+    if (!merged.some((s) => s.slug === prev.slug)) merged.push(prev);
+  }
+  const capped = merged.slice(0, 50);
+  savePersistentStories(capped);
   cache = {
-    stories: finalStories,
+    stories: capped,
     about: updatedAbout,
     lastUpdated: Date.now(),
   };
-  console.log(`Background sync completed. Stories cached: ${finalStories.length}`);
+  console.log(`Background sync completed. Stories cached: ${capped.length} (fetched ${finalStories.length})`);
 }
 
 async function serveSPAWithSEO(req: express.Request, res: express.Response, viteInstance?: any) {
@@ -154,7 +182,7 @@ async function serveSPAWithSEO(req: express.Request, res: express.Response, vite
 
   let title = "The Ink Home | Where Words Feel at Home";
   let description = "Where spatial typography, code shaders, and cyber-philosophical stories merge into floating geometric objects in space.";
-  let cover = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80";
+  let cover = FALLBACK_COVER;
   let url = `https://theinkhome.live/story/${slug || ""}`;
 
   if (story) {
@@ -266,11 +294,11 @@ async function getMediumAvatarWithCache(username: string): Promise<string> {
     mimmaya: "https://images.unsplash.com/photo-1554151228-14d9def656e4?auto=format&fit=crop&w=304&h=304&q=80",
     adammcclarin: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=304&h=304&q=80",
     mabelpenrose: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=304&h=304&q=80",
-    "mabel-penrose": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=304&h=304&q=80",
-    jmactavish: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=304&h=304&q=80",
+    "mabel-penrose": "https://ui-avatars.com/api/?name=Mabel+Penrose&background=111827&color=fff&size=128",
+    jmactavish: "https://ui-avatars.com/api/?name=The+Ink+Home&background=111827&color=fff&size=128",
     vikrakkrisnasamy: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=304&h=304&q=80",
     vikrakkrishnasamy: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=304&h=304&q=80",
-    "lc-squared": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=304&h=304&q=80",
+    "lc-squared": "https://ui-avatars.com/api/?name=LC+Squared&background=111827&color=fff&size=128",
     lcsquared: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=304&h=304&q=80",
     michaelkoyfman: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=304&h=304&q=80",
   };
@@ -338,7 +366,7 @@ async function getMediumAvatarWithCache(username: string): Promise<string> {
     console.warn("Tier 4 avatar fetch failed:", err);
   }
 
-  const fallback = premiumFallbacks[cacheKey] || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=304&h=304&q=80";
+  const fallback = premiumFallbacks[cacheKey] || "https://ui-avatars.com/api/?name=The+Ink+Home&background=111827&color=fff&size=128";
   avatarCache.set(cacheKey, { url: fallback, expiresAt: Date.now() + AVATAR_CACHE_TTL });
   return fallback;
 }
@@ -383,14 +411,28 @@ async function startServer() {
   app.use(express.text({ type: "application/json", limit: "100kb" }));
 
   app.use((req, res, next) => {
-    res.set("Cache-Control", "no-store");
+    res.set("Cache-Control", "public, max-age=3600");
     next();
   });
 
   app.use(
     helmet({
-      contentSecurityPolicy: false,
-      crossOriginEmbedderPolicy: false,
+      contentSecurityPolicy: {
+        directives: {
+          "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+          "style-src": ["'self'", "'unsafe-inline'"],
+          "img-src": ["'self'", "data:", "https:", "blob:"],
+          "media-src": ["'self'", "blob:"],
+          "font-src": ["'self'", "data:"],
+          "connect-src": ["'self'", "https://api.groq.com", "https://api.rss2json.com", "https://medium.com"],
+          "frame-src": ["'self'", "https://medium.com"],
+          "object-src": ["'none'"],
+          "base-uri": ["'self'"],
+          "form-action": ["'self'"],
+        },
+      },
+      crossOriginEmbedderPolicy: true,
+      crossOriginResourcePolicy: { policy: "cross-origin" },
     })
   );
 
@@ -411,6 +453,25 @@ async function startServer() {
     legacyHeaders: false,
     message: { error: "Too many requests, please try again later" },
   });
+  // Image proxy — stabilizes cdn-images/miro/ui-avatars fetches and prevents flicker from 404s on /api/img?u=
+  app.get("/api/img", async (req, res) => {
+    const raw = Array.isArray(req.query.u) ? req.query.u[0] : (req.query.u as string | undefined);
+    if (!raw) return res.status(400).end();
+    let target: URL;
+    try { target = new URL(raw); } catch { return res.status(400).end(); }
+    const allowed = new Set(["cdn-images-1.medium.com", "miro.medium.com", "cdn-images-1.medium.com", "ui-avatars.com"]);
+    if (target.protocol !== "https:" || !allowed.has(target.hostname)) return res.status(403).end();
+    try {
+      const upstream = await fetch(target.toString(), { headers: { "User-Agent": "TheInkHome/1.0" } });
+      if (!upstream.ok) return res.status(upstream.status).end();
+      const buf = Buffer.from(await upstream.arrayBuffer());
+      res.setHeader("Content-Type", upstream.headers.get("content-type") || "image/jpeg");
+      res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=31536000, immutable");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      return res.status(200).send(buf);
+    } catch { return res.status(502).end(); }
+  });
+
   app.use("/api/", apiLimiter);
 
   app.get("/api/health", (req, res) => {
@@ -499,6 +560,41 @@ async function startServer() {
     }
   });
 
+  app.post("/api/ai/crawl", async (req, res) => {
+    try {
+      const stories = await fetchStoriesWithRetry(2);
+      const storyCount = stories.length;
+      const now = new Date().toISOString();
+      res.json({
+        status: "crawled",
+        stories: storyCount,
+        message: storyCount > 0 ? `Crawled ${storyCount} new stories` : "No new stories found",
+        stats: { documents: storyCount, embeddings: storyCount, lastCrawled: now },
+      });
+    } catch (err) {
+      console.error("Crawl error:", err);
+      res.status(500).json({ error: "Crawl failed", message: err instanceof Error ? err.message : "Unknown error" });
+    }
+  });
+
+  app.post("/api/ai/embeddings", async (req, res) => {
+    try {
+      await initializeKnowledgeBase();
+      const docs = getDocuments();
+      const count = docs.length;
+      const now = new Date().toISOString();
+      res.json({
+        status: "embeddings_generated",
+        count,
+        message: count > 0 ? `Generated embeddings for ${count} documents` : "No documents found",
+        stats: { documents: count, embeddings: count, lastCrawled: now },
+      });
+    } catch (err) {
+      console.error("Embeddings error:", err);
+      res.status(500).json({ error: "Embeddings generation failed", message: err instanceof Error ? err.message : "Unknown error" });
+    }
+  });
+
   let vite: any;
   if (process.env.NODE_ENV !== "production") {
     vite = await createViteServer({
@@ -529,16 +625,28 @@ async function startServer() {
     });
   }
 
-  const server = app.listen(PORT, "0.0.0.0", () => {
-    console.log(`The Ink Home Server running on http://localhost:${PORT}`);
-    prefetchAvatars(FALLBACK_ABOUT.editors, MAX_PREFETCH_CONCURRENCY);
-    prefetchAvatars(FALLBACK_ABOUT.writers, MAX_PREFETCH_CONCURRENCY);
-  });
-
-  server.on("error", (err) => {
-    console.error("Server failed to start:", err);
-    process.exit(1);
-  });
+  const tryListen = (port: number, attempts = 0): Promise<ReturnType<typeof app.listen>> => {
+    return new Promise((resolve, reject) => {
+      const srv: any = app.listen(port, "0.0.0.0", () => {
+        console.log(`The Ink Home Server running on http://localhost:${port}`);
+        prefetchAvatars(FALLBACK_ABOUT.editors, MAX_PREFETCH_CONCURRENCY);
+        prefetchAvatars(FALLBACK_ABOUT.writers, MAX_PREFETCH_CONCURRENCY);
+        resolve(srv);
+      });
+      srv.on("error", (err: any) => {
+        if (err.code === "EADDRINUSE" && attempts < 5) {
+          console.warn(`Port ${port} in use — trying ${port + 1}...`);
+          tryListen(port + 1, attempts + 1).then(resolve, reject);
+        } else {
+          console.error("Server failed to start:", err);
+          console.error("Fix: lsof -ti:3000 | xargs kill -9; lsof -ti:24678 | xargs kill -9; npm run dev");
+          reject(err);
+          if (attempts >= 5) process.exit(1);
+        }
+      });
+    });
+  };
+  const server: any = await tryListen(PORT);
 
   const gracefulShutdown = () => {
     console.log("Shutting down gracefully...");

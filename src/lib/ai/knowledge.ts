@@ -1,8 +1,12 @@
 import { KnowledgeDoc } from "./types";
-import { knowledgeDocs } from "./knowledge-data";
 
 export function loadAllDocuments(): Promise<KnowledgeDoc[]> {
-  return Promise.resolve(knowledgeDocs);
+  return Promise.resolve([]);
+}
+
+export async function loadAllDocumentsServer(): Promise<KnowledgeDoc[]> {
+  const { knowledgeDocs } = await import("./knowledge-data");
+  return knowledgeDocs;
 }
 
 export function getDocUrl(relPath: string): string {

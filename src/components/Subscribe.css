@@ -3,15 +3,17 @@
   margin: 32px auto;
   background: rgba(10, 10, 12, 0.7);
   border: 1px solid var(--glow-border);
-  border-radius: 0; /* Align with Ink Home blocky cinematic theme */
+  border-radius: 0;
   padding: 24px;
   position: relative;
   overflow: hidden;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6), 
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6),
               0 0 15px 0 var(--glow-bg);
   transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .subscribe-card::before {
@@ -26,7 +28,7 @@
 
 .subscribe-card:hover {
   border-color: var(--glow-text);
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.8), 
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.8),
               0 0 25px 0 var(--glow-color);
   transform: translateY(-2px);
 }
@@ -68,10 +70,12 @@
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0;
-  font-size: 14px;
+  font-size: 16px; /* Prevent iOS zoom on focus */
   color: #ffffff;
   font-family: var(--font-mono);
   transition: all 0.3s ease;
+  min-height: 48px; /* Touch target */
+  box-sizing: border-box;
 }
 
 .subscribe-form input[type='email']::placeholder {
@@ -113,6 +117,8 @@
   font-size: 11px;
   cursor: pointer;
   transition: all 0.3s ease;
+  min-height: 48px;
+  box-sizing: border-box;
 }
 
 .btn:hover:not([disabled]) {
@@ -138,6 +144,9 @@
   border-bottom: 1px dashed #334155;
   padding-bottom: 2px;
   transition: all 0.3s ease;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .read-medium:hover {
@@ -154,18 +163,70 @@
   white-space: nowrap;
 }
 
+/* ===== Responsive ===== */
 @media (max-width: 640px) {
   .subscribe-card {
     margin: 16px 0;
     padding: 18px;
+    max-width: 100%;
   }
   .actions {
     flex-direction: column;
     align-items: stretch;
-    gap: 14px;
+    gap: 12px;
   }
   .read-medium {
     text-align: center;
-    align-self: center;
+    justify-content: center;
   }
+  .subscribe-title {
+    font-size: 18px;
+  }
+  .subscribe-sub {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 380px) {
+  .subscribe-card {
+    padding: 14px;
+  }
+  .subscribe-title {
+    font-size: 16px;
+  }
+  .subscribe-form input[type='email'] {
+    font-size: 16px;
+    padding: 14px 16px;
+  }
+}
+
+/* ===== Touch device optimizations ===== */
+@media (hover: none) and (pointer: coarse) {
+  .subscribe-form input[type='email'] {
+    font-size: 16px;
+    min-height: 48px;
+  }
+  .btn {
+    min-height: 48px;
+    min-width: 48px;
+  }
+  .read-medium {
+    min-height: 48px;
+  }
+}
+
+/* ===== Reduced motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  .subscribe-card {
+    transition: none;
+  }
+}
+
+/* ===== Performance ===== */
+.subscribe-card {
+  contain: layout style paint;
+}
+
+.subscribe-form input[type='email'] {
+  will-change: border-color, box-shadow;
 }

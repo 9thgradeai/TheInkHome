@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "../lib/motion";
 import { 
   BookOpen, 
   ExternalLink, 
@@ -142,12 +142,12 @@ export default function SubmissionGuideline() {
           <div className="flex items-center gap-6">
             <div className="flex -space-x-4">
               <img 
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" 
+                src="https://miro.medium.com/v2/resize:fit:2400/1*OonAmXM0uBzGf_KYL3s85w.png" 
                 alt="Farhan Kabir" 
                 className="w-12 h-12 rounded-none object-cover border-2 border-[var(--atmo-border)]"
               />
               <img 
-                src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=100&q=80" 
+                src="https://miro.medium.com/v2/resize:fit:2400/1*4o35ax2_LSaOtP-3Lfi0Eg.jpeg" 
                 alt="Dua Batool" 
                 className="w-12 h-12 rounded-none object-cover border-2 border-purple-500/40"
               />

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "../lib/motion";
 import DOMPurify from "isomorphic-dompurify";
 import { Story } from "../types";
 import {
@@ -265,17 +265,19 @@ export default function StoryModal({
             {/* Hero Cover Frame */}
             <div className="relative w-full h-[16rem] sm:h-[20rem] md:h-[25rem] overflow-hidden">
               <img
-                src={optimizeImageUrl(story.cover || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80", 1200)}
+                src={optimizeImageUrl(story.cover || "https://cdn-images-1.medium.com/proxy/1*TGH72Nnw24QL3iV9IOm4VA.png", 800)}
                 alt={story.title}
                 referrerPolicy="no-referrer"
-                width="1200"
-                height="600"
+                width="800"
+                height="400"
                 sizes="100vw"
                 decoding="async"
+                loading="eager"
+                fetchPriority="high" as any
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
-                  target.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80";
+                  target.src = "https://cdn-images-1.medium.com/proxy/1*TGH72Nnw24QL3iV9IOm4VA.png";
                 }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-black/30" />
@@ -309,7 +311,7 @@ export default function StoryModal({
                   <AvatarImage
                     src={story.avatar}
                     alt={story.author}
-                    fallbackSrc="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"
+                    fallbackSrc=""
                     className="w-7 h-7 sm:w-9 sm:h-9 rounded-none object-cover border border-white/5"
                   />
                   <div>

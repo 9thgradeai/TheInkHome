@@ -97,11 +97,13 @@ class StreamClass {
 }
 
 const DataStreamBackground: React.FC<{ baseHue?: number }> = ({ baseHue = 180 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouse = useRef({ x: 0, y: 0, radius: 100 });
   const hue = useRef(baseHue);
   const streamsRef = useRef<StreamClass[]>([]);
   const animationFrameId = useRef<number | null>(null);
+  const isMobile = typeof window !== "undefined" && (window.innerWidth < 768 || window.matchMedia("(max-width: 768px)").matches);
 
   useEffect(() => {
     hue.current = baseHue;
@@ -110,33 +112,31 @@ const DataStreamBackground: React.FC<{ baseHue?: number }> = ({ baseHue = 180 })
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const container = containerRef.current;
+    if (!container) return;
     const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
     if (!ctx) return;
 
     if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     let isActive = true;
-    // Throttle redraws to ~30fps — the canvas is decorative; full 60fps burns
-    // main thread on mobile for little visual gain.
     let lastDraw = 0;
-    const FRAME_MS = 33;
+    const FRAME_MS = isMobile ? 50 : 33;
 
-    // Logical (CSS px) size — drawing is done in these coords via setTransform.
-    let width = window.innerWidth;
-    let height = window.innerHeight;
+    let width = container.clientWidth;
+    let height = container.clientHeight;
 
     const init = () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      // Cap backing-store DPR at 1.5 — a 60fps canvas is expensive on HiDPI/mobile.
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      const rect = container.getBoundingClientRect();
+      width = rect.width;
+      height = rect.height;
+      const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 1.5);
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = '#050505';
       ctx.fillRect(0, 0, width, height);
-      // Fewer streams on small screens — the background is decorative, not the focus.
-      const streamCount = width < 640 ? 12 : 20;
+      const streamCount = width < 640 ? 8 : isMobile ? 12 : 20;
       streamsRef.current = [];
       for (let i = 0; i < streamCount; i++) {
         streamsRef.current.push(new StreamClass(width, height));
@@ -145,25 +145,19 @@ const DataStreamBackground: React.FC<{ baseHue?: number }> = ({ baseHue = 180 })
 
     const animate = (ts: number = performance.now()) => {
       if (!isActive) return;
-
-      // Only repaint when a frame is actually due (throttle to ~30fps).
       if (ts - lastDraw >= FRAME_MS) {
         lastDraw = ts;
-
         const prevFillStyle = ctx.fillStyle;
         ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
         ctx.globalCompositeOperation = 'source-over';
         ctx.fillRect(0, 0, width, height);
         ctx.fillStyle = prevFillStyle;
         ctx.font = '16px monospace';
-
         hue.current = (hue.current + 0.5) % 360;
-
         streamsRef.current.forEach(stream =>
           stream.updateAndDraw(ctx, width, height, hue.current, mouse.current.x, mouse.current.y, mouse.current.radius)
         );
       }
-
       animationFrameId.current = requestAnimationFrame(animate);
     };
 
@@ -176,8 +170,6 @@ const DataStreamBackground: React.FC<{ baseHue?: number }> = ({ baseHue = 180 })
       init();
     };
 
-    // Pause the animation while the tab is hidden — no point paying 60fps for a
-    // background nobody can see. Resume when visible again.
     const handleVisibility = () => {
       if (document.hidden) {
         if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
@@ -205,7 +197,11 @@ const DataStreamBackground: React.FC<{ baseHue?: number }> = ({ baseHue = 180 })
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[0]" />;
+  return (
+    <div ref={containerRef} className="absolute inset-0 pointer-events-none z-[0] data-stream-bg">
+      <canvas ref={canvasRef} className="w-full h-full" />
+    </div>
+  );
 };
 
 export default DataStreamBackground;

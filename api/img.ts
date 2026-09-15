@@ -12,7 +12,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
  * SSRF guard: only the Medium CDN host is allowed.
  */
 
-const ALLOWED_HOSTS = new Set(["cdn-images-1.medium.com"]);
+const ALLOWED_HOSTS = new Set(["cdn-images-1.medium.com", "miro.medium.com", "ui-avatars.com"]);
 const CACHE = "public, max-age=86400, s-maxage=31536000, immutable";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

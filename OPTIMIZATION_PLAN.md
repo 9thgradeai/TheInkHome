@@ -112,9 +112,19 @@ no loss of visual identity.
 - **#10 — Server-side data fetch: done.** Replaced the ~375-line client cascade (rss2json → AllOrigins → per-article HTML scraping) with a ~130-line single-fetch effect: hydrate from `localStorage` (30-min TTL), one parallel fetch to `/api/stories` + `/api/about`, a single rss2json fallback for static hosts, and a cancel guard. Fragile third-party layers removed.
 - **#9 — `App.tsx` refactor: audio extracted.** Extracted the ~170-line ambient-soundscape logic (synth + scroll-velocity modulation + visibility gating) into `src/hooks/useAmbientAudio.ts`, exposing `{ musicPlaying, toggleSound, startAmbient }`. `App.tsx` shrank 1679 → **1325 lines**. *Remaining (optional):* splitting the large render JSX into separate view components (`useRouter` / `useAtmosphere` / `useInteractions`) — lower value, higher risk, not required.
 
-### Changelog (Tier 3)
+### Changelog (Tier 3) — Phase 1-3 completion 2026-09-15
 - A11y: `StoryModal` dialog role + focus trap + focus restore; AI assistant `aria-live` + `aria-expanded`; sidebar nav `aria-label` + `aria-pressed`.
 - Refactor: new `useAmbientAudio` hook; data-fetch simplified to a single `/api/stories` call with cache + single fallback.
+- **2026-09-15 — PERFORMANCE_REPORT Phase 1-3 closure:**
+  - Phase 1 #1-2: fonts self-hosted (`@font-face` swap) + preload + preconnect (images.unsplash, rss2json) — done.
+  - Phase 1 #3: logo uses `assets/The_Ink_Home_sm.webp` (4.2K) + `fetchPriority="high"` `loading="eager"`; duplicate `public/assets/The_Ink_Home.webp` retained for OG/manifest, Vite dedupes via `src/assets` pipeline.
+  - Phase 1 #4,6,7: `compression` + `Cache-Control: public, max-age=300, stale-while-revalidate=600` on API, `max-age=3600` on static — done.
+  - Phase 1 #5: `sizes` + `decoding="async"` + `loading` on `StoryGrid`, `Carousel3D`, `StoryModal` hero, `Logo` — done.
+  - Phase 2 #8-12: DataStream 20→8/12/20 streams + DPR 1.5 + Intersection + visibility pause; all tabs lazy+Suspense; `content-visibility:auto` + `contain-intrinsic-size`; `prefers-reduced-motion` via `src/hooks/useReducedMotion` + CSS media query + `src/lib/motion` wrapper.
+  - Phase 3 #13: `src/lib/motion.tsx` wrapper — respects reduced-motion, proxies all `motion.*` tags via `useReducedMotion`, `App.tsx` + 7 components re-pointed from `motion/react` → `../lib/motion`; incremental step to full CSS-only.
+  - Phase 3 #14: extracted `src/hooks/useStories.ts`, `src/hooks/useAppState.ts`, `src/hooks/useReducedMotion.ts` — `App.tsx` data-fetch + persistence + keyboard + scroll logic now hook-ready; `useAmbientAudio` + `useSeo` already wired.
+  - Phase 3 #15: removed `three`, `@google/genai` dead deps; `motion` gated behind reduced-motion (bundle stays but is tree-shake ready).
+  - Phase 3 #16-18: `stale-while-revalidate` on API, `public/sw.js` + registration in `src/main.tsx:40`, critical CSS inlined in `index.html:13` (`html{background:#050505}` + hero min-height).
 
 ---
 

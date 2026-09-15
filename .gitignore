@@ -7,3 +7,6 @@ coverage/
 .env*
 !.env.example
 .vercel
+.cache/
+.jetro/
+assets/hero /

@@ -99,5 +99,4 @@ console.log(`Bundled ${docs.length} documents into TypeScript`);
 
 const apiAiDir = path.resolve(process.cwd(), 'api', 'ai');
 fs.mkdirSync(apiAiDir, { recursive: true });
-fs.copyFileSync(OUTPUT_TS, path.join(apiAiDir, 'knowledge-data.ts'));
-console.log(`Copied knowledge data to ${path.join(apiAiDir, 'knowledge-data.ts')}`);
+console.log(`Knowledge data written to ${OUTPUT_TS} (api/ai/knowledge-data.ts imports from src/lib/ai/knowledge-data.json)`);

@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+import { motion } from "../lib/motion";
 import { Story } from "../types";
 import { ArrowUpRight, Heart, Bookmark } from "lucide-react";
 import { getLikesCount } from "../lib/interaction";
@@ -70,7 +70,7 @@ export default function StoryList({
             <div className="flex items-center justify-between md:justify-end gap-3 sm:gap-4 md:gap-6 md:min-w-[180px] sm:md:min-w-[200px]">
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <AvatarImage 
-                  src={story.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde"} 
+                  src={story.avatar || ""} 
                   alt={story.author} 
                   className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-none object-cover border border-white/5" 
                 />

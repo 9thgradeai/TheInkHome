@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { initializeKnowledgeBase, getDocuments, searchDocuments, generateRAGResponse } from "./rag";
+import crawlHandler from "./crawl";
+import embeddingsHandler from "./embeddings";
 
 let initialized = false;
 
@@ -15,6 +17,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Content-Type", "application/json");
   try {
     await ensureInit();
+
+    const pathname = req.url || (req as any).path || "";
+
+    if (pathname.includes("/crawl")) {
+      return crawlHandler(req, res);
+    }
+
+    if (pathname.includes("/embeddings")) {
+      return embeddingsHandler(req, res);
+    }
 
     if (req.method === "POST") {
       const query: string = req.body?.query || req.body?.messages?.at(-1)?.content || "";
@@ -34,3 +46,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: "Request failed", details: err instanceof Error ? err.message : "unknown" });
   }
 }
+
+export { crawlHandler, embeddingsHandler };

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "../lib/motion";
 import { Story, Author } from "../types";
 import { User, Users, Feather, Info, BookOpen, ExternalLink, Globe } from "lucide-react";
 import AvatarImage from "./AvatarImage";
@@ -172,11 +172,10 @@ export default function AuthorsSection({
 
                 <div className="space-y-6">
                   <div className="flex items-center gap-5">
-                   <AvatarImage
-                     src={editor.avatar}
-                     alt={editor.name}
-                     fallbackSrc="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80"
-                     className="w-14 h-14 sm:w-20 sm:h-20 rounded-none object-cover border-2 border-[var(--atmo-border)]"
+                    <AvatarImage
+                      src={editor.avatar}
+                      alt={editor.name}
+                      className="w-14 h-14 sm:w-20 sm:h-20 rounded-none object-cover border-2 border-[var(--atmo-border)]"
                    />
                     <div>
                       <h3 className="font-sans font-bold text-xl uppercase tracking-wide text-white">
@@ -312,7 +311,7 @@ export default function AuthorsSection({
                      <AvatarImage
                        src={writer.avatar}
                        alt={writer.name}
-                       fallbackSrc="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"
+                       fallbackSrc=""
                        className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-none object-cover border border-white/10"
                      />
                     <div>

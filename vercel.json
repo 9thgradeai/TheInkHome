@@ -1,6 +1,8 @@
 {
   "version": 2,
   "routes": [
+    { "src": "/api/ai/crawl", "dest": "/api/ai/crawl" },
+    { "src": "/api/ai/embeddings", "dest": "/api/ai/embeddings" },
     { "src": "/api/ai/(.*)", "dest": "/api/ai/index" },
     { "src": "/api/(.*)", "dest": "/api/$1" },
     { "src": "/assets/(.*)", "dest": "/dist/assets/$1" },

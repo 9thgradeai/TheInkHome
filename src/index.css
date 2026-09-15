@@ -491,7 +491,131 @@ main > div > section {
   }
 }
 
-/* Ensure no horizontal overflow on mobile */
+/* ===== Hero Section Responsive ===== */
+.hero {
+  width: 100%;
+  max-width: 100vw;
+  overflow: hidden;
+  position: relative;
+}
+
+.hero video {
+  object-position: center center;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero .hero-content {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .hero video {
+    object-position: center center;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero {
+    min-height: 100svh;
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* ===== Video fallback for when WebM is unsupported ===== */
+.hero-video-fallback {
+  background-color: #050505;
+  background-image: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+/* ===== Mobile Typography Scale ===== */
+@media (max-width: 380px) {
+  .hero .hero-content h1 {
+    font-size: 2.5rem !important;
+  }
+  .hero .hero-content p {
+    font-size: 0.875rem !important;
+  }
+  .hero .hero-content .enter-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ===== Touch Target Optimization ===== */
+@media (hover: none) and (pointer: coarse) {
+  .hero button,
+  .hero a,
+  .hero input[type="submit"],
+  .hero input[type="email"] {
+    min-height: 48px;
+    min-width: 48px;
+  }
+}
+
+/* ===== Performance: Reduce canvas animation on low-end devices ===== */
+@media (max-width: 480px), (max-device-memory: 2) {
+  .data-stream-bg {
+    display: none;
+  }
+}
+
+/* ===== Safe area support for notched devices ===== */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .hero {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .hero .hero-content {
+    padding-top: max(1.5rem, env(safe-area-inset-top));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* ===== Prevent horizontal overflow ===== */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* ===== Video fallback for when WebM is unsupported ===== */
+@supports not (background: url("data:video/webm;base64,AAA") no-repeat) {
+  .hero video {
+    display: none;
+  }
+}
+
+/* ===== Smooth scrolling for all devices ===== */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
+}
+
+/* ===== Content visibility optimization ===== */
+main > section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
+/* Ensure above-fold sections are painted */
+[data-atmosphere] .hero {
+  content-visibility: visible;
+}
+
+/* ===== Reduce motion on mobile for performance ===== */
+@media (prefers-reduced-motion: reduce), (max-width: 480px) {
+  .hero video {
+    animation: none !important;
+  }
+}
+
+/* ===== Ensure no horizontal overflow on mobile ===== */
 @media (max-width: 640px) {
   * {
     max-width: 100vw;
@@ -513,13 +637,143 @@ main > div > section {
     outline-offset: 2px;
   }
 
-  /* Legibility floor: raise the tiniest all-caps micro-labels above illegibility on phones.
-     Desktop keeps the original cinematic micro-typography untouched. */
+  /* Legibility floor: raise the tiniest all-caps micro-labels above illegibility on phones. */
   .text-\[8px\],
   .text-\[9px\],
   .text-\[10px\] {
     font-size: 11px !important;
     letter-spacing: 0.08em;
+  }
+
+  /* Hero content mobile optimizations */
+  .hero {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .hero .hero-content {
+    gap: 0.5rem;
+  }
+
+  .hero .hero-content h1 {
+    font-size: 2.5rem !important;
+    line-height: 1;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .hero .hero-content p {
+    font-size: 0.875rem !important;
+    line-height: 1.5 !important;
+  }
+
+  .hero .hero-content button {
+    width: 100%;
+    justify-content: center;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .hero .hero-content h1 {
+    font-size: 2rem !important;
+  }
+  .hero .hero-content p {
+    font-size: 0.8125rem !important;
+  }
+}
+
+/* ===== Subscribe card mobile responsive ===== */
+@media (max-width: 640px) {
+  .subscribe-card {
+    margin: 16px 0;
+    padding: 16px;
+    max-width: 100%;
+  }
+  .subscribe-form .field input[type="email"] {
+    font-size: 16px; /* Prevent iOS zoom */
+    padding: 14px 16px;
+    min-height: 48px;
+  }
+  .subscribe-form .actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .subscribe-form .actions .btn {
+    min-height: 48px;
+    width: 100%;
+    text-align: center;
+  }
+  .subscribe-form .actions .read-medium {
+    text-align: center;
+    align-self: center;
+  }
+  .subscribe-title {
+    font-size: 18px !important;
+  }
+  .subscribe-sub {
+    font-size: 13px !important;
+  }
+}
+
+/* ===== Bento grid responsive ===== */
+@media (max-width: 640px) {
+  .grid\.grid-cols-1\.sm\:grid-cols-2,
+  .grid\.grid-cols-1\.sm\:grid-cols-2\.lg\:grid-cols-2\.xl\:grid-cols-3\.2xl\:grid-cols-4 {
+    gap: 0.75rem;
+  }
+}
+
+/* ===== Tablet and iPad responsive ===== */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .hero .hero-content {
+    padding: 0 1.5rem;
+  }
+  .hero .hero-content h1 {
+    font-size: 3.5rem !important;
+  }
+  .hero .hero-content p {
+    font-size: 1rem !important;
+  }
+}
+
+/* ===== Large screen optimizations ===== */
+@media (min-width: 1440px) {
+  .hero .hero-content {
+    max-width: 90rem;
+  }
+}
+
+/* ===== Performance: Will-change for animated elements ===== */
+.hero-content {
+  will-change: transform, opacity;
+}
+
+/* ===== Prevent layout shift ===== */
+video {
+  background-color: #050505;
+}
+
+/* ===== Focus visible for keyboard navigation ===== */
+*:focus-visible {
+  outline: 2px solid var(--atmo-text);
+  outline-offset: 2px;
+}
+
+/* ===== Selection styling ===== */
+::selection {
+  background-color: var(--atmo-text);
+  color: white;
+}
+
+/* ===== Print styles ===== */
+@media print {
+  .hero video {
+    display: none;
+  }
+  .hero {
+    min-height: auto;
   }
 }
 
@@ -552,6 +806,24 @@ main > div > section {
   max-width: 42rem;
 }
 
+/* ===== Data stream background visibility ===== */
+.data-stream-bg {
+  contain: layout style;
+  will-change: contents;
+}
+
+@media (max-width: 480px), (max-device-memory: 2) {
+  .data-stream-bg {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .data-stream-bg {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
@@ -559,3 +831,76 @@ main > div > section {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ===== Framer Motion CSS Replacements ===== */
+.anim-fade-in {
+  animation: fadeIn 0.8s ease-in-out forwards;
+}
+.anim-fade-in-delay-05 { animation: fadeIn 0.8s ease-in-out 0.05s forwards; opacity: 0; }
+.anim-fade-in-delay-1 { animation: fadeIn 0.8s ease-in-out 0.1s forwards; opacity: 0; }
+.anim-fade-in-delay-2 { animation: fadeIn 0.8s ease-in-out 0.2s forwards; opacity: 0; }
+.anim-fade-in-delay-35 { animation: fadeIn 0.5s ease-out 0.35s forwards; opacity: 0; }
+.anim-fade-in-delay-4 { animation: fadeIn 0.5s ease-out 0.4s forwards; opacity: 0; }
+.anim-fade-in-delay-45 { animation: fadeIn 0.5s ease-out 0.45s forwards; opacity: 0; }
+
+.anim-slide-up { animation: slideUp 0.6s ease-out forwards; }
+.anim-slide-up-delay-3 { animation: slideUp 0.6s ease-out 0.3s forwards; opacity: 0; }
+.anim-slide-up-delay-4 { animation: slideUp 0.6s ease-out 0.4s forwards; opacity: 0; }
+
+.anim-scale-in { animation: scaleIn 0.5s ease-out forwards; }
+.anim-scale-in-delay-05 { animation: scaleIn 0.5s ease-out 0.05s forwards; opacity: 0; }
+
+.anim-ease-out { animation: easeOut 0.6s ease-out forwards; }
+
+.anim-spring { animation: springIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes fadeIn { to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes scaleIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes easeOut { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes springIn { from { opacity: 0; transform: translateY(20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+.anim-fade-out { animation: fadeOut 0.8s ease-in-out forwards; }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+.anim-exit-slide { animation: exitSlide 0.8s ease-in-out forwards; }
+@keyframes exitSlide { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-40px); } }
+
+/* ===== Reading Progress Bar ===== */
+.reading-progress-bar {
+  position: fixed; top: 0; left: 0; height: 3px; z-index: 100;
+  background: linear-gradient(90deg, var(--atmo-text), var(--atmo-glow));
+  transform-origin: left; transform: scaleX(0);
+  will-change: transform;
+}
+
+/* ===== Dark Mode Toggle ===== */
+.dark-mode-toggle {
+  position: fixed; top: 16px; right: 16px; z-index: 50;
+  width: 40px; height: 40px; border-radius: 12px;
+  background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.3s ease; color: white;
+}
+.dark-mode-toggle:hover { background: rgba(255,255,255,0.1); border-color: var(--atmo-text); }
+
+/* ===== Advanced Search Panel ===== */
+.search-panel {
+  position: fixed; top: 60px; right: 16px; z-index: 50;
+  width: 360px; max-width: 90vw; background: rgba(5,5,5,0.95);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
+  backdrop-filter: blur(20px); padding: 16px; display: none;
+}
+.search-panel.open { display: block; }
+.search-panel input {
+  width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; padding: 10px 14px; color: white; font-size: 14px;
+  outline: none; font-family: inherit;
+}
+.search-panel input:focus { border-color: var(--atmo-text); }
+.search-result-item {
+  padding: 10px 12px; border-radius: 8px; cursor: pointer;
+  transition: background 0.2s; color: #94a3b8; font-size: 13px;
+}
+.search-result-item:hover { background: rgba(255,255,255,0.05); color: white; }
+.search-result-item .result-title { color: white; font-weight: 600; margin-bottom: 4px; }
