@@ -1,4 +1,4 @@
-import knowledgeDocsData from "./knowledge-data.json" assert { type: "json" };
+import knowledgeDocsData from "./knowledge-payload.json" assert { type: "json" }
 export const knowledgeDocs = knowledgeDocsData as typeof knowledgeDocsData;
 export interface KnowledgeDoc {
   id: string;
