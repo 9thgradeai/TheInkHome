@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { DEFAULT_STORIES as ServerDefaultStories } from "../src/lib/api-server";
 
 type Story = {
   title: string;
@@ -266,34 +267,92 @@ async function fetchWithTimeout(url: string, timeout = 8000): Promise<Response> 
   }
 }
 
-async function fetchFreshStories(): Promise<Story[]> {
+async function fetchWriterFeeds(writerUsernames: string[]): Promise<Story[]> {
+  const allStories: Story[] = [];
+
+  const writerFeeds = await Promise.allSettled(
+    writerUsernames.map(async (u: string) => {
+      try {
+        const userFeedUrl = `https://medium.com/feed/@${u}`;
+        const rss2JsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(userFeedUrl)}`;
+        const r = await fetchWithTimeout(rss2JsonUrl, 8000);
+        if (!r.ok) return [] as Story[];
+        const j: any = await r.json();
+        if (j.status === "ok" && Array.isArray(j.items)) {
+          return transformRSSItems(j.items);
+        }
+        return [] as Story[];
+      } catch { return [] as Story[]; }
+    })
+  );
+
+  for (const res of writerFeeds) {
+    if (res.status === "fulfilled" && Array.isArray(res.value)) {
+      for (const s of res.value) {
+        if (!allStories.some((f) => f.slug === s.slug)) {
+          allStories.push(s);
+        }
+      }
+    }
+  }
+
+  return allStories;
+}
+
+async function fetchStoriesWithWriterMerge(): Promise<Story[]> {
+  // Tier 1: Fetch publication feed
+  let fetchedStories: Story[] = [];
+
   try {
     const rss2JsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent("https://medium.com/feed/the-ink-home")}`;
     const proxyRes = await fetchWithTimeout(rss2JsonUrl, 10000);
     if (proxyRes.ok) {
       const jsonPayload = await proxyRes.json();
-      if (jsonPayload && jsonPayload.status === "ok" && Array.isArray(jsonPayload.items) && jsonPayload.items.length > 0) {
-        return transformRSSItems(jsonPayload.items);
+      if (jsonPayload && jsonPayload.status === "ok" && Array.isArray(jsonPayload.items)) {
+        fetchedStories = transformRSSItems(jsonPayload.items);
       }
     }
   } catch (e) {
-    console.error("Vercel stories fetch failed:", e);
+    console.warn("Tier 1 fetch failed:", e);
   }
 
+  if (fetchedStories.length === 0) {
+    try {
+      const response = await fetchWithTimeout("https://medium.com/feed/the-ink-home", 10000);
+      if (response.ok) {
+        const xmlData = await response.text();
+        const parsed = parseMediumRSS(xmlData);
+        if (parsed.length > 0) {
+          fetchedStories = parsed;
+        }
+      }
+    } catch (e) {
+      console.warn("Tier 2 fetch failed:", e);
+    }
+  }
+
+  // Tier 3: Merge writer personal feeds to reach 30
   try {
-    const response = await fetchWithTimeout("https://medium.com/feed/the-ink-home", 10000);
-    if (response.ok) {
-      const xmlData = await response.text();
-      const parsed = parseMediumRSS(xmlData);
-      if (parsed.length > 0) {
-        return parsed;
+    const writerUsernames = ServerDefaultStories.map((w: any) => w.username).filter(Boolean).slice(0, 12);
+    const writerStories = await fetchWriterFeeds(writerUsernames);
+
+    // Combine: publication first, then writer stories without duplicates
+    const combined = [...fetchedStories];
+    for (const s of writerStories) {
+      if (!combined.some((f) => f.slug === s.slug)) {
+        combined.push(s);
       }
     }
+
+    // Sort by pubDate desc and cap to 30
+    combined.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+    fetchedStories = combined.slice(0, 30);
   } catch (e) {
-    console.error("Vercel RSS fetch failed:", e);
+    console.warn("Writer feed merge failed:", e);
+    fetchedStories = fetchedStories.slice(0, 30);
   }
 
-  return [];
+  return fetchedStories;
 }
 
 const CACHE_TTL = 5 * 60 * 1000;
@@ -306,7 +365,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (Date.now() - storyCacheTime > CACHE_TTL || storyCache.length === 0) {
-    storyCache = await fetchFreshStories();
+    storyCache = await fetchStoriesWithWriterMerge();
     storyCacheTime = Date.now();
   }
 
