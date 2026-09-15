@@ -1,14 +1,12 @@
 {
   "version": 2,
   "routes": [
+    { "handle": "filesystem" },
     { "src": "/api/ai/(.*)", "dest": "/api/ai/index" },
     { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/assets/(.*)", "dest": "/dist/assets/$1" },
-    { "src": "/fonts/(.*)", "dest": "/dist/fonts/$1" },
-    { "src": "/manifest.json", "dest": "/dist/manifest.json" },
-    { "src": "/sw.js", "dest": "/dist/sw.js" },
-    { "src": "/robots.txt", "dest": "/dist/robots.txt" },
-    { "src": "/sitemap.xml", "dest": "/dist/sitemap.xml" },
+    { "src": "/hero.webm", "dest": "/hero.webm" },
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/fonts/(.*)", "dest": "/fonts/$1" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
