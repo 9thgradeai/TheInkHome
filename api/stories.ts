@@ -27,7 +27,8 @@ const DEFAULT_STORIES: Story[] = [
     content: "<h4>To all those who wish they could get over, but never could.</h4><figure><img alt=\"\" src=\"https://cdn-images-1.medium.com/max/500/1*FigsX415bkNudQhI8m46jQ.jpeg\"></figure><p>I wish that I could forget you.<br>Forget you like those dreams I never remember.<br>Forget you like the past I’ve buried and held a funeral for.<br>I wish I could forget you like a bullet to the head.<br>Quick, fast and painless.<br>As I do not wish to feel the agony of losing you.",
     cover: "https://cdn-images-1.medium.com/max/500/1*FigsX415bkNudQhI8m46jQ.jpeg",
     slug: "its-all-yours-954b1750ccc2",
-    avatar: "https://miro.medium.com/v2/resize:fit:2400/1*OonAmXM0uBzGf_KYL3s85w.png"
+    avatar: "https://miro.medium.com/v2/resize:fit:2400/1*OonAmXM0uBzGf_KYL3s85w.png",
+    username: "rutupatil"
   },
   {
     title: "Things You Didn't Know About The Generative AI Revolution",
@@ -40,9 +41,23 @@ const DEFAULT_STORIES: Story[] = [
     content: "<p>The generative AI revolution is reshaping creativity, code, and content. From writing assistance to code generation...</p>",
     cover: "https://cdn-images-1.medium.com/max/500/1*example.jpg",
     slug: "things-you-didnt-know-about-the-generative-ai-revolution",
-    avatar: "https://miro.medium.com/v2/resize:fit:2400/1*farhankabir133.png"
+    avatar: "https://miro.medium.com/v2/resize:fit:2400/1*farhankabir133.png",
+    username: "farhankabir133"
+  },
+  {
+    title: "Why We Built Deterministic RAG, Not Agentic",
+    link: "https://medium.com/the-ink-home/why-we-built-deterministic-rag-not-agentic-9s1t2k3s4t5",
+    author: "AI Contributor",
+    role: "Contributor",
+    pubDate: "2026-09-10 09:15:00",
+    categories: ["artificial-intelligence", "rag", "architecture"],
+    description: "Building reliable RAG systems without agent overhead.",
+    content: "<p>Deterministic RAG provides consistent answers...</p>",
+    cover: "https://cdn-images-1.medium.com/max/500/1*another-example.jpg",
+    slug: "why-we-built-deterministic-rag-not-agentic",
+    username: "aicontributor"
   }
-  // ... more stories would be populated by sync/crawl
+  // Additional stories would be populated by RSS fetch; usernames used for writer feed expansion
 ];
 
 const PRESET_COVERS = [
@@ -140,10 +155,12 @@ function parseMediumRSS(xmlText: string): Story[] {
     }
 
     let author = "The Ink Home Team";
-    const creatorMatch = itemContent.match(/<dc:creator>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/dc:creator>/) ||
-                         itemContent.match(/<creator>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/creator>/));
-    if (creatorMatch) {
-      author = (creatorMatch[1] || creatorMatch[2] || "").trim();
+    const creatorMatch_dc = itemContent.match(/<dc:creator>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/dc:creator>/);
+    const creatorMatch_creator = itemContent.match(/<creator>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/creator>/);
+    if (creatorMatch_dc) {
+      author = (creatorMatch_dc[1] || creatorMatch_dc[2] || "").trim();
+    } else if (creatorMatch_creator) {
+      author = (creatorMatch_creator[1] || creatorMatch_creator[2] || "").trim();
     }
 
     let pubDate = new Date().toUTCString();
@@ -291,8 +308,9 @@ async function fetchStoriesWithWriterMerge(): Promise<Story[]> {
 
   // Tier 3: Merge writer personal feeds to reach 30
   try {
-    const writerUsernames = DEFAULT_STORIES.map((w: any) => w.username).filter(Boolean).slice(0, 12);
-    const writerStories = await fetchWriterFeeds(writerUsernames);
+    // Use known writer usernames from The Ink Home publication
+    const knownWriterUsernames = ["farhankabir133", "rutupatil", "aicontributor", "dbatool242", "yiwanye", "soamidayakrishnananda", "anna jaworska", "marmanrezashah", "aichelsantos", "amberfaulk", "paushalidas", "sadmantaqi"];
+    const writerStories = await fetchWriterFeeds(knownWriterUsernames);
 
     // Combine: publication first, then writer stories without duplicates
     const combined = [...fetchedStories];
