@@ -3,7 +3,6 @@ import { motion } from "motion/react";
 import { ArrowUpRight, BookOpen, Quote, Sparkles } from "lucide-react";
 import { Logo } from "../components/Logo";
 import { Story } from "../types";
-import AIAssistant from "../components/AIAssistant";
 
 interface AboutData {
   description: string;
@@ -39,7 +38,6 @@ export default function AboutPage({
 }: AboutPageProps) {
   return (
     <section className="min-h-screen bg-[#08080a] text-white">
-      <AIAssistant />
 
       <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#08080a]/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-8">

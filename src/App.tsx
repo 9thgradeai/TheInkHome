@@ -1136,6 +1136,8 @@ export default function App() {
         }}
       />
 
+      <AIAssistant />
+
       <main id="main">
         <AnimatePresence mode="wait">
           <motion.div
@@ -1183,7 +1185,6 @@ export default function App() {
               <StoryNotFound loading={loading} onNavigate={navigate} />
             ) : (
               <>
-                <AIAssistant />
                 <Hero
                   featured={stories[0]}
                   storyCount={stories.length}

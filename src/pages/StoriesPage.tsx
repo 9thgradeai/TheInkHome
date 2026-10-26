@@ -4,7 +4,6 @@ import { ArrowDownRight, Feather, Search, Sparkles } from "lucide-react";
 import { StoryCard } from "../components/StoryCard";
 import { Story } from "../types";
 import { formatDate, stripHtml, topCategories } from "../lib/format";
-import AIAssistant from "../components/AIAssistant";
 
 interface StoriesPageProps {
   stories: Story[];
@@ -69,7 +68,6 @@ export default function StoriesPage({
 
   return (
     <section className="min-h-screen bg-[#08080a] text-white">
-      <AIAssistant openByDefault />
 
       <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#08080a]/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-8">

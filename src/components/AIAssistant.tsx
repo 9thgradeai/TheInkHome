@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  ArrowRight,
   Bot,
-  Copy,
   MessageCircle,
   Send,
   Sparkles,
@@ -37,17 +35,40 @@ export default function AIAssistant({ openByDefault = false }: AIAssistantProps)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const scrollBottom = useCallback(() => {
-    if (panelRef.current) {
-      panelRef.current.scrollTop = panelRef.current.scrollHeight;
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
   useEffect(() => {
     scrollBottom();
   }, [messages, scrollBottom]);
+
+  useEffect(() => {
+    if (open) {
+      const timer = setTimeout(() => inputRef.current?.focus(), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && open) setOpen(false);
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
@@ -81,7 +102,7 @@ export default function AIAssistant({ openByDefault = false }: AIAssistantProps)
 
   const handleQuick = useCallback((question: string) => {
     setInput(question);
-    handleSend();
+    setTimeout(() => handleSend(), 0);
   }, [handleSend]);
 
   const handleKeyDown = useCallback(
@@ -99,11 +120,11 @@ export default function AIAssistant({ openByDefault = false }: AIAssistantProps)
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-8 right-8 z-[100] flex h-14 w-14 items-center justify-center rounded-full bg-[#c8ff4d] text-black shadow-[0_10px_30px_-10px_rgba(200,255,77,0.35)] transition-all duration-300 hover:scale-105 hover:shadow-[0_15px_40px_-10px_rgba(200,255,77,0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c8ff4d] focus-visible:ring-offset-2"
+          className="fixed bottom-4 right-4 z-[1000] flex h-14 w-14 items-center justify-center rounded-full bg-[#c8ff4d] text-black shadow-[0_8px_24px_-4px_rgba(200,255,77,0.4)] transition-all duration-200 hover:scale-105 hover:shadow-[0_12px_32px_-4px_rgba(200,255,77,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c8ff4d] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08080a] active:scale-95 sm:bottom-6 sm:right-6"
           aria-label="Open AI Assistant"
         >
           <Bot className="h-6 w-6" />
-          <span className="absolute -right-3 -top-3 flex h-5 w-5 items-center justify-center rounded-full bg-[#08080a] px-1 text-[10px] font-bold text-[#c8ff4d] border border-[#c8ff4d]/30">
+          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#08080a] text-[10px] font-bold text-[#c8ff4d] border border-[#c8ff4d]/40">
             AI
           </span>
         </button>
@@ -112,21 +133,28 @@ export default function AIAssistant({ openByDefault = false }: AIAssistantProps)
       <AnimatePresence>
         {open && (
           <>
-            <button
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               onClick={() => setOpen(false)}
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-opacity"
+              className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-sm"
               aria-label="Close assistant"
             />
             <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              initial={{ opacity: 0, y: 40, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              transition={{ duration: 0.25 }}
-              className="fixed bottom-8 right-8 z-[100] w-full max-w-[420px] h-[560px] md:h-[640px] flex flex-col rounded-3xl border border-white/10 bg-[#0b0c0f] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] overflow-hidden flex-shrink-0"
+              exit={{ opacity: 0, y: 40, scale: 0.96 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="fixed inset-x-0 bottom-0 z-[1000] flex h-[92vh] max-h-[92vh] flex-col overflow-hidden rounded-t-3xl border-t border-white/10 bg-[#0b0c0f] shadow-[0_-8px_40px_-8px_rgba(0,0,0,0.8)] sm:inset-auto sm:bottom-6 sm:right-6 sm:h-[600px] sm:max-h-[85vh] sm:w-[400px] sm:rounded-3xl sm:border sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] md:h-[640px] md:w-[420px]"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Ink Assistant"
             >
-              <div className="flex items-center justify-between border-b border-white/10 bg-[#0a0b0d]/60 backdrop-blur p-5">
+              {/* Header */}
+              <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#0a0b0d]/80 backdrop-blur px-5 py-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-[#c8ff4d]">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#c8ff4d]/10 text-[#c8ff4d]">
                     <Sparkles className="h-4 w-4" />
                   </div>
                   <div>
@@ -140,102 +168,108 @@ export default function AIAssistant({ openByDefault = false }: AIAssistantProps)
                 </div>
                 <button
                   onClick={() => setOpen(false)}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl text-white/40 transition-colors hover:bg-white/10 hover:text-white active:scale-95"
                   aria-label="Close assistant"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-5 custom-scrollbar" ref={panelRef}>
+              {/* Messages */}
+              <div
+                className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 sm:py-5"
+                ref={panelRef}
+              >
                 {error && (
-                  <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-900/20 p-3 text-[11px] text-amber-300">
+                  <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-900/20 p-3 text-xs text-amber-300">
                     {error}
                   </div>
                 )}
 
-                <div className="mb-6 flex flex-col gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-white/25">
-                  {QUICK_QUESTIONS.map((q) => (
-                    <button
-                      key={q}
-                      onClick={() => handleQuick(q)}
-                      className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-[10px] text-white/60 transition-colors hover:border-white/30 hover:text-white"
-                    >
-                      <MessageCircle className="h-3 w-3" /> {q}
-                    </button>
-                  ))}
-                </div>
+                {/* Quick questions */}
+                {messages.length <= 1 && (
+                  <div className="mb-5 flex flex-wrap gap-2">
+                    {QUICK_QUESTIONS.map((q) => (
+                      <button
+                        key={q}
+                        onClick={() => handleQuick(q)}
+                        disabled={loading}
+                        className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/60 transition-colors hover:border-white/25 hover:bg-white/[0.06] hover:text-white active:scale-95 disabled:opacity-50"
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {messages.map((m, index) => (
                     <motion.div
                       key={index}
-                      initial={{ opacity: 0, y: 8 }}
+                      initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`max-w-[88%] ${
-                        m.role === "user"
-                          ? "ml-auto text-right"
-                          : "mr-auto text-left"
-                      }`}
+                      transition={{ duration: 0.2 }}
+                      className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
                     >
-                      <div
-                        className={`inline-block rounded-2xl p-4 text-sm leading-relaxed ${
-                          m.role === "user"
-                            ? "bg-[#c8ff4d] text-black"
-                            : "border border-white/10 bg-[#0a0b0d]/60 text-white/90"
-                        }`}
-                      >
-                        {m.content}
+                      <div className={`max-w-[85%] ${m.role === "user" ? "text-right" : "text-left"}`}>
+                        <div
+                          className={`inline-block rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                            m.role === "user"
+                              ? "bg-[#c8ff4d] text-black rounded-br-md"
+                              : "border border-white/10 bg-white/[0.04] text-white/90 rounded-bl-md"
+                          }`}
+                        >
+                          {m.content}
+                        </div>
+                        <span className="mt-1 block text-[9px] font-mono text-white/30">
+                          {m.role === "user" ? "You" : "Ink Assistant"}
+                        </span>
                       </div>
-                      <span className="mt-1 block text-[9px] font-mono">
-                        {m.role === "user" ? "You" : "Ink Assistant"}
-                      </span>
                     </motion.div>
                   ))}
                   {loading && (
-                    <div className="max-w-[70%] mr-auto flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full border border-white/10 border-t-[#c8ff4d] animate-spin" />
-                      <span className="text-[11px] text-white/40 uppercase tracking-[0.14em] font-mono">
-                        typing
-                      </span>
+                    <div className="flex justify-start">
+                      <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                        <div className="h-4 w-4 rounded-full border-2 border-white/20 border-t-[#c8ff4d] animate-spin" />
+                        <span className="text-xs text-white/40">Thinking…</span>
+                      </div>
                     </div>
                   )}
+                  <div ref={messagesEndRef} />
                 </div>
               </div>
 
+              {/* Input */}
               <form
                 onSubmit={(event) => {
                   event.preventDefault();
                   handleSend();
                 }}
-                className="border-t border-white/10 bg-[#0a0b0d]/60 backdrop-blur p-4"
+                className="shrink-0 border-t border-white/10 bg-[#0a0b0d]/80 backdrop-blur px-4 py-3 sm:px-5 sm:py-4"
               >
-                <div className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.02] px-3 py-2.5 focus-within:border-[#c8ff4d]/60 focus-within:ring-1 focus-within:ring-[#c8ff4d]/40">
+                <div className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.03] px-3 py-2.5 transition-colors focus-within:border-[#c8ff4d]/50 focus-within:ring-1 focus-within:ring-[#c8ff4d]/30">
                   <input
                     ref={inputRef}
                     value={input}
                     onChange={(event) => setInput(event.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Ask about submissions, writers, or the publication…"
-                    className="flex-1 bg-transparent text-sm text-white placeholder:text-white/25 focus:outline-none"
+                    placeholder="Ask about The Ink Home…"
+                    className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-white/30 focus:outline-none"
                     disabled={loading}
+                    autoComplete="off"
+                    enterKeyHint="send"
                   />
-                  {input.trim() && !loading && (
-                    <button
-                      type="button"
-                      onClick={handleSend}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-[#c8ff4d] text-black transition-transform hover:-translate-y-0.5"
-                      aria-label="Send message"
-                    >
-                      <Send className="h-4 w-4" />
-                    </button>
-                  )}
-                  {!input.trim() && !loading && (
-                    <Copy className="h-4 w-4 text-white/30" />
-                  )}
+                  <button
+                    type="submit"
+                    disabled={!input.trim() || loading}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#c8ff4d] text-black transition-all hover:bg-[#d4ff6a] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label="Send message"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
                 </div>
-                <p className="mt-2 text-[9px] font-mono text-white/25">
-                  Powered by Groq &bull; The Ink Home
+                <p className="mt-2 text-center text-[9px] font-mono text-white/20">
+                  Powered by Groq · The Ink Home
                 </p>
               </form>
             </motion.div>
