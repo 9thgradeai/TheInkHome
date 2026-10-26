@@ -8,67 +8,34 @@ interface ChatMessage {
   content: string;
 }
 
-interface ChatRequest {
-  messages: ChatMessage[];
-  temperature?: number;
-  max_tokens?: number;
-}
-
-// Simplified system prompt - core only
-const SYSTEM_PROMPT = `You are Ink Assistant for The Ink Home. Help users with submission guidelines, how to become a writer, and publication information. Keep answers concise.`;
-
-function applyCorsHeaders(res: VercelResponse, origin?: string | null) {
-  res.setHeader("Vary", "Origin");
-  res.setHeader("Access-Control-Allow-Origin", origin || "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Access-Control-Max-Age", "86400");
-}
+// Minimal system prompt
+const SYSTEM_PROMPT = `You are Ink Assistant for The Ink Home. Help with submission guidelines, how to become a writer, and publication information. Keep answers concise and helpful.`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const origin = req.headers.origin;
+  // Vercel automatically parses JSON body, no need for manual parsing
+  const body = req.body as { messages?: { role: string; content: string }[]; temperature?: number; max_tokens?: number } || {};
 
-  // Handle preflight.
-  if (req.method === "OPTIONS") {
-    applyCorsHeaders(res, origin);
-    return res.status(204).end();
+  // Validate required fields
+  if (!body?.messages || !Array.isArray(body.messages)) {
+    return res.status(400).json({ error: "Invalid request: messages array is required." });
   }
 
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST, OPTIONS");
-    return res.status(405).json({ error: "Method not allowed" });
+  if (body.messages.length === 0) {
+    return res.status(400).json({ error: "Messages array cannot be empty." });
   }
 
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    console.error("GROQ_API_KEY is not configured on the server.");
-    res.setHeader("Content-Type", "application/json");
-    applyCorsHeaders(res, origin);
-    return res.status(500).json({ error: "AI assistant is not configured." });
+    // In production, this should be set via Vercel environment variables
+    return res.status(500).json({ error: "AI service not configured. Please contact support." });
   }
-
-  let body: ChatRequest;
-  try {
-    body = JSON.parse(req.body || "{}");
-  } catch {
-    res.setHeader("Content-Type", "application/json");
-    applyCorsHeaders(res, origin);
-    return res.status(400).json({ error: "Invalid request body." });
-  }
-
-  if (!Array.isArray(body.messages) || body.messages.length === 0) {
-    res.setHeader("Content-Type", "application/json");
-    applyCorsHeaders(res, origin);
-    return res.status(400).json({ error: "messages is required." });
-  }
-
-  // Build groq messages: always include a system message
-  const groqMessages = [
-    { role: "system", content: SYSTEM_PROMPT },
-    ...body.messages,
-  ];
 
   try {
+    const groqMessages = [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...body.messages,
+    ];
+
     const groqResponse = await fetch(GROQ_API_URL, {
       method: "POST",
       headers: {
@@ -82,37 +49,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         max_tokens: body.max_tokens ?? 512,
         stream: false,
       }),
-      signal: AbortSignal.timeout(50000),
     });
-
-    applyCorsHeaders(res, origin);
 
     if (!groqResponse.ok) {
       const errorText = await groqResponse.text().catch(() => "unknown error");
       console.error(`Groq API error ${groqResponse.status}:`, errorText);
-      // Return specific error based on status
-      if (groqResponse.status === 400) {
-        return res.status(400).json({ error: "Bad request to AI service. Please try again." });
-      }
       if (groqResponse.status === 429) {
         return res.status(429).json({ error: "AI service rate limit exceeded. Please try again later." });
       }
-      if (groqResponse.status === 500) {
-        return res.status(500).json({ error: "AI service internal error. Please try again." });
-      }
-      res.status(groqResponse.status).setHeader("Content-Type", "application/json");
-      return res.json({ error: "AI assistant request failed." });
+      return res.status(groqResponse.status).json({ error: "AI service error. Please try again." });
     }
 
     const data = await groqResponse.json();
     const reply = data?.choices?.[0]?.message?.content || "";
-    res.setHeader("Content-Type", "application/json");
     return res.status(200).json({ reply });
   } catch (err) {
     console.error("AI assistant proxy error:", err);
-    res.setHeader("Content-Type", "application/json");
-    applyCorsHeaders(res, origin);
-    return res.status(502).json({ error: "AI assistant is temporarily unavailable." });
+    return res.status(500).json({ error: "AI assistant is temporarily unavailable." });
   }
 }
 
