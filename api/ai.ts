@@ -8,16 +8,33 @@ interface ChatMessage {
   content: string;
 }
 
-// Minimal system prompt
-const SYSTEM_PROMPT = `You are Ink Assistant for The Ink Home. Help with submission guidelines, how to become a writer, and publication information. Keep answers concise and helpful.`;
+interface ChatRequest {
+  messages: ChatMessage[];
+  temperature?: number;
+  max_tokens?: number;
+}
+
+// Simplified system prompt - core only
+const SYSTEM_PROMPT = `You are Ink Assistant for The Ink Home. Help users with submission guidelines, how to become a writer, and publication information. Keep answers concise and helpful. Keep answers under 200 words.`;
+
+function validateRequest(body: any): body is ChatRequest {
+  return (
+    body &&
+    Array.isArray(body.messages) &&
+    body.messages.length > 0 &&
+    body.messages.every(
+      (m: any) => m && typeof m === "object" && m.role && typeof m.content === "string"
+    )
+  );
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Vercel automatically parses JSON body, no need for manual parsing
-  const body = req.body as { messages?: { role: string; content: string }[]; temperature?: number; max_tokens?: number } || {};
+  const body = req.body as ChatRequest | undefined;
 
-  // Validate required fields
-  if (!body?.messages || !Array.isArray(body.messages)) {
-    return res.status(400).json({ error: "Invalid request: messages array is required." });
+  // Validate request structure
+  if (!validateRequest(body)) {
+    return res.status(400).json({ error: "Invalid request: messages array is required and must contain objects with 'role' and 'content' fields." });
   }
 
   if (body.messages.length === 0) {
@@ -26,8 +43,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    // In production, this should be set via Vercel environment variables
-    return res.status(500).json({ error: "AI service not configured. Please contact support." });
+    // In production, this MUST be set via Vercel environment variables
+    // The .env file is gitignored and won't deploy
+    return res.status(500).json({ error: "AI service not configured. Please set GROQ_API_KEY in Vercel dashboard > Settings > Environment Variables." });
   }
 
   try {
@@ -55,17 +73,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const errorText = await groqResponse.text().catch(() => "unknown error");
       console.error(`Groq API error ${groqResponse.status}:`, errorText);
       if (groqResponse.status === 429) {
-        return res.status(429).json({ error: "AI service rate limit exceeded. Please try again later." });
+        return res.status(429).json({ error: "AI service rate limit exceeded. Please wait a moment and try again." });
+      }
+      if (groqResponse.status >= 500) {
+        return res.status(550).json({ error: "AI service internal error. Please try again later." });
       }
       return res.status(groqResponse.status).json({ error: "AI service error. Please try again." });
     }
 
     const data = await groqResponse.json();
     const reply = data?.choices?.[0]?.message?.content || "";
-    return res.status(200).json({ reply });
+    if (!reply) {
+      return res.status(502).json({ error: "AI response was empty. Please try again." });
+    }
+    res.status(200).json({ reply });
   } catch (err) {
     console.error("AI assistant proxy error:", err);
-    return res.status(500).json({ error: "AI assistant is temporarily unavailable." });
+    return res.status(500).json({ error: "AI assistant is temporarily unavailable. Please try again in a few moments." });
   }
 }
 

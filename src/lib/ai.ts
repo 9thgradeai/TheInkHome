@@ -6,6 +6,7 @@ export interface AIMessage {
 export interface AIAssistantOptions {
   onMessage?: (message: AIMessage) => void;
   onError?: (error: string) => void;
+  onRetry?: () => void;
   temperature?: number;
   maxTokens?: number;
 }
@@ -16,7 +17,7 @@ export async function askAI(
   messages: AIMessage[],
   options: AIAssistantOptions = {},
 ): Promise<string> {
-  const { onError } = options;
+  const { onError, onRetry } = options;
 
   try {
     const response = await fetch(AI_ENDPOINT, {
@@ -27,21 +28,23 @@ export async function askAI(
         temperature: options.temperature ?? 0.5,
         max_tokens: options.maxTokens ?? 512,
       }),
-      signal: AbortSignal.timeout(50000),
+      signal: AbortSignal.timeout(30000),
     });
 
     if (!response.ok) {
-      const err = await response
-        .json()
-        .catch(() => ({ error: `HTTP ${response.status}` }));
-      throw new Error(err.error || "AI request failed");
+      const errData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+      throw new Error(errData.error || `HTTP ${response.status} error`);
     }
 
     const data = (await response.json()) as { reply?: string };
-    return data.reply || "";
+    if (!data.reply) {
+      throw new Error("AI response was empty or malformed");
+    }
+    return data.reply;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown AI error";
     onError?.(message);
+    onRetry?.();
     throw err;
   }
 }
