@@ -639,13 +639,38 @@ app.post("/api/ai", async (req, res) => {
       return res.status(500).json({ error: "AI assistant is not configured." });
     }
     try {
-      // req.body is already parsed by express.json() middleware
       const body = req.body;
       if (!body || !body.messages || !Array.isArray(body.messages)) {
         return res.status(400).json({ error: "Invalid request body." });
       }
-      // Simple validation - just echo back a message
-      return res.status(200).json({ reply: `Received: ${body.messages[0]?.content || ''}` });
+      const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-oss-20b",
+          messages: [
+            { role: "system", content: "You are Ink Assistant for The Ink Home. Help users with submission guidelines, how to become a writer, and publication information. Keep answers concise and helpful. Keep answers under 200 words." },
+            ...body.messages,
+          ],
+          temperature: body.temperature ?? 0.5,
+          max_tokens: body.max_tokens ?? 512,
+          stream: false,
+        }),
+      });
+      if (!groqRes.ok) {
+        const errText = await groqRes.text().catch(() => "unknown");
+        console.error("Groq API error:", groqRes.status, errText);
+        return res.status(groqRes.status).json({ error: "AI service error. Please try again." });
+      }
+      const data = await groqRes.json();
+      const reply = data?.choices?.[0]?.message?.content || "";
+      if (!reply) {
+        return res.status(502).json({ error: "AI response was empty. Please try again." });
+      }
+      return res.status(200).json({ reply });
     } catch (error) {
       console.error("AI endpoint error:", error);
       return res.status(500).json({ error: "Internal server error." });
