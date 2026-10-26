@@ -633,6 +633,25 @@ async function startServer() {
     res.status(200).json({ success: true, message: "Telemetry received successfully" });
   });
 
+app.post("/api/ai", async (req, res) => {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "AI assistant is not configured." });
+    }
+    try {
+      // req.body is already parsed by express.json() middleware
+      const body = req.body;
+      if (!body || !body.messages || !Array.isArray(body.messages)) {
+        return res.status(400).json({ error: "Invalid request body." });
+      }
+      // Simple validation - just echo back a message
+      return res.status(200).json({ reply: `Received: ${body.messages[0]?.content || ''}` });
+    } catch (error) {
+      console.error("AI endpoint error:", error);
+      return res.status(500).json({ error: "Internal server error." });
+    }
+  });
+
   let vite: any;
   if (process.env.NODE_ENV !== "production") {
     vite = await createViteServer({
