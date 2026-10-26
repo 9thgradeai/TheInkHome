@@ -1,6 +1,6 @@
 {
-  "name": "The Ink Home",
-  "description": "The official high-performance cinematic 3D digital publication platform for The Ink Home",
+  "name": "The Ink Home — Medium Publication",
+  "description": "An independent Medium publication of essays on technology, culture, creativity, relationships and the quiet parts of being human.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

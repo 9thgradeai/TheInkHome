@@ -1,5 +1,10 @@
 {
   "version": 2,
+  "functions": {
+    "api/stories.ts": { "maxDuration": 60 },
+    "api/about.ts": { "maxDuration": 30 },
+    "api/ai.ts": { "maxDuration": 60 }
+  },
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/$1" },
     { "src": "/assets/(.*)", "dest": "/dist/assets/$1" },

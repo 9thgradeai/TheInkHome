@@ -82,15 +82,39 @@ html {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: none;
+  background: #08080a;
 }
 
 body {
   margin: 0;
   padding: 0;
+  background: #08080a;
+  color: #ffffff;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
+}
+
+::selection {
+  background: #c8ff4d;
+  color: #000000;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #08080a;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border: 3px solid #08080a;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
 }
 
 #root {
@@ -232,6 +256,199 @@ body {
 
 .pause {
   animation-play-state: paused;
+}
+
+/* Long-form reading styles */
+.prose-ink {
+  font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+  font-size: 1.125rem;
+  line-height: 1.85;
+  color: rgba(255, 255, 255, 0.76);
+  overflow-wrap: break-word;
+}
+
+.prose-ink > *:first-child {
+  margin-top: 0;
+}
+
+.prose-ink p {
+  margin: 0 0 1.6em;
+}
+
+.prose-ink > p:first-of-type::first-letter {
+  float: left;
+  margin: 0.08em 0.1em 0 0;
+  font-family: var(--font-display);
+  font-size: 3.7em;
+  font-weight: 900;
+  line-height: 0.72;
+  color: #c8ff4d;
+}
+
+.prose-ink h2,
+.prose-ink h3,
+.prose-ink h4 {
+  color: #ffffff;
+  font-family: var(--font-display);
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  scroll-margin-top: 100px;
+}
+
+.prose-ink h2 {
+  margin: 2.4em 0 0.7em;
+  font-size: clamp(1.6rem, 3.4vw, 2.15rem);
+  font-weight: 800;
+}
+
+.prose-ink h3 {
+  margin: 2em 0 0.6em;
+  font-size: clamp(1.3rem, 2.6vw, 1.65rem);
+  font-weight: 700;
+}
+
+.prose-ink h4 {
+  margin: 1.8em 0 0.5em;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.prose-ink a {
+  color: #c8ff4d;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: rgba(200, 255, 77, 0.4);
+}
+
+.prose-ink a:hover {
+  text-decoration-color: #c8ff4d;
+}
+
+.prose-ink strong,
+.prose-ink b {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.prose-ink em,
+.prose-ink i {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.prose-ink img,
+.prose-ink video {
+  width: 100%;
+  height: auto;
+  margin: 2.4rem 0;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.prose-ink figure {
+  margin: 2.4rem 0;
+}
+
+.prose-ink figure img {
+  margin: 0;
+}
+
+.prose-ink figcaption,
+.prose-ink .image-caption {
+  margin-top: 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.38);
+  text-align: center;
+}
+
+.prose-ink blockquote {
+  margin: 2.2rem 0;
+  padding: 0.25rem 0 0.25rem 1.35rem;
+  border-left: 2px solid #c8ff4d;
+  color: rgba(255, 255, 255, 0.86);
+  font-style: italic;
+  font-size: 1.12em;
+}
+
+.prose-ink blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+.prose-ink ul,
+.prose-ink ol {
+  margin: 0 0 1.6em;
+  padding-left: 1.4em;
+}
+
+.prose-ink ul {
+  list-style: disc;
+}
+
+.prose-ink ol {
+  list-style: decimal;
+}
+
+.prose-ink li {
+  margin-bottom: 0.55em;
+  padding-left: 0.2em;
+}
+
+.prose-ink li::marker {
+  color: #c8ff4d;
+}
+
+.prose-ink hr {
+  margin: 3rem auto;
+  width: 90px;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.prose-ink pre {
+  margin: 2rem 0;
+  padding: 1.1rem 1.25rem;
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0d0e11;
+  font-size: 0.85rem;
+  line-height: 1.65;
+}
+
+.prose-ink code {
+  padding: 0.12em 0.35em;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: #d9ffa0;
+}
+
+.prose-ink pre code {
+  padding: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.prose-ink iframe {
+  width: 100%;
+  margin: 2rem 0;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 640px) {
+  .prose-ink {
+    font-size: 1.04rem;
+    line-height: 1.8;
+  }
+
+  .prose-ink > p:first-of-type::first-letter {
+    font-size: 3.2em;
+  }
 }
 
 /* Typography scale and rhythm */

@@ -1,1659 +1,1234 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { Story } from "./types";
-
-const Carousel3D = lazy(() => import("./components/Carousel3D"));
-const StoryGrid = lazy(() => import("./components/StoryGrid"));
-const StoryList = lazy(() => import("./components/StoryList"));
-const AuthorsSection = lazy(() => import("./components/AuthorsSection"));
-const SubmissionGuideline = lazy(() => import("./components/SubmissionGuideline"));
-const StoryModal = lazy(() => import("./components/StoryModal"));
-import AvatarImage from "./components/AvatarImage";
-import { Logo } from "./components/Logo";
-import DataStreamBackground from "./components/DataStreamBackground";
-import CinematicLoader from "./components/CinematicLoader";
-import FALLBACK_STORIES from "./data/fallbackStories";
-import FALLBACK_ABOUT from "./data/fallbackAbout";
-import { 
-  Compass, 
-  LayoutGrid, 
-  AlignLeft, 
-  Users, 
-  ExternalLink,
-  BookOpen, 
-  ArrowDown, 
-  Cpu, 
-  Radio,
-  ChevronRight,
-  ChevronLeft,
-  Flame,
-  Volume2,
-  VolumeX,
-  Heart,
-  Bookmark,
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import {
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
+  Asterisk,
+  BookOpen,
+  Check,
+  Clock,
   Feather,
-  MoreHorizontal,
-  Menu,
-  ArrowUpRight
+  Mail,
+  PenLine,
+  Quote,
+  Search,
+  Sparkles,
+  Users,
 } from "lucide-react";
-import Subscribe from "./components/Subscribe";
-import { getLikesCount } from "./lib/interaction";
+import SiteHeader from "./components/SiteHeader";
+import SiteFooter from "./components/SiteFooter";
+import ReadingPage from "./components/ReadingPage";
+import { StoryCard } from "./components/StoryCard";
+import StoryCover from "./components/StoryCover";
+import AuthorAvatar from "./components/AuthorAvatar";
+import { FALLBACK_STORIES } from "./data/fallbackStories";
+import { FALLBACK_ABOUT } from "./data/fallbackAbout";
+import { Story } from "./types";
+import { formatDate, readingTime, stripHtml, topCategories } from "./lib/format";
+import StoriesPage from "./pages/StoriesPage";
+import WritersPage from "./pages/WritersPage";
+import AboutPage from "./pages/AboutPage";
+import AIAssistant from "./components/AIAssistant";
 
-export default function App() {
-  // Initialize stories from local fallback for instant rendering on static hosts
-  const [stories, setStories] = useState<Story[]>(() => FALLBACK_STORIES || []);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [editors, setEditors] = useState<any[]>(() => FALLBACK_ABOUT.editors || []);
-  const [writers, setWriters] = useState<any[]>(() => FALLBACK_ABOUT.writers || []);
-  const [aboutInfo, setAboutInfo] = useState<any>(() => ({
-    description: FALLBACK_ABOUT.description,
-    officialWebsite: FALLBACK_ABOUT.officialWebsite
-  }));
-  
-  // Navigation & View Toggles
-  const [entered, setEntered] = useState(false);
-  const [bgMode, setBgMode] = useState<"stellar" | "ink" | "forest" | "constellation">("stellar");
-  const [activeTab, setActiveTab] = useState<"3d" | "grid" | "list" | "authors" | "saved" | "guideline">("3d");
-  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
-  const [cinematicComplete, setCinematicComplete] = useState(false);
-  const [isWelcomeHome, setIsWelcomeHome] = useState(false);
+const EASE = [0.16, 1, 0.3, 1] as const;
+const STORY_CACHE_KEY = "the-ink-home:stories:v4";
+const STORY_CACHE_TIME = "the-ink-home:stories:v4:time";
+const CACHE_TTL = 1000 * 60 * 20;
 
-  const pendingSlugRef = useRef<string | null>(null);
+const DEFAULT_TOPICS = [
+  "Writing",
+  "Technology",
+  "Life",
+  "Culture",
+  "Creativity",
+  "Productivity",
+  "Relationships",
+  "Mental Health",
+];
 
-  // Mouse coords & Scroll tracking for Typographic Kinetic motion
-  const [coords, setCoords] = useState({ x: 0, y: 0 });
-  const [scrollY, setScrollY] = useState(0);
+interface Person {
+  name: string;
+  username?: string;
+  role: string;
+  bio?: string;
+  avatar?: string;
+  followers?: number;
+  mediumUrl?: string;
+}
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    const x = (e.clientX / window.innerWidth) * 2 - 1;
-    const y = (e.clientY / window.innerHeight) * 2 - 1;
-    setCoords({ x, y });
-  };
+interface AboutData {
+  description: string;
+  officialWebsite?: string;
+  editors: Person[];
+  writers: Person[];
+}
+
+function useCurrentPath() {
+  const [path, setPath] = useState(() => window.location.pathname);
 
   useEffect(() => {
-    const handleWinScroll = () => {
-      setScrollY(window.scrollY);
-    };
-    window.addEventListener("scroll", handleWinScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleWinScroll);
+    const onPop = () => setPath(window.location.pathname);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  // Helper to push history state and update URL
-  const navigateTo = (path: string) => {
-    if (window.location.pathname !== path) {
-      window.history.pushState(null, "", path);
-      window.dispatchEvent(new PopStateEvent("popstate"));
-    }
-  };
+  return [path, setPath] as const;
+}
 
-  const handleSelectStory = (story: Story | null) => {
-    setSelectedStory(story);
-    if (story) {
-      navigateTo(`/story/${story.slug}`);
-    } else {
-      navigateTo("/" + (activeTab === "authors" ? "about" : activeTab));
-    }
-  };
+function readLiked(key: string): string[] {
+  try {
+    const raw = localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
-  const handleTabChange = (tab: "3d" | "grid" | "list" | "authors" | "saved" | "guideline") => {
-    setActiveTab(tab);
-    navigateTo("/" + (tab === "authors" ? "about" : tab));
-  };
+function Reveal({
+  children,
+  delay = 0,
+  className = "",
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+  key?: React.Key;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-80px" }}
+      transition={{ duration: 0.7, delay, ease: EASE }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
-  // GitHub Pages 404.html fallback: restore original path from query param
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const redirectPath = params.get("redirect_to");
-    if (redirectPath) {
-      window.history.replaceState(null, "", redirectPath);
-      window.dispatchEvent(new PopStateEvent("popstate"));
-    }
-  }, []);
+function Marquee({ topics }: { topics: string[] }) {
+  const content = (
+    <div className="flex shrink-0 items-center">
+      {topics.map((topic) => (
+        <span key={topic} className="flex items-center">
+          <span className="px-5 font-display text-[12px] font-semibold uppercase tracking-[0.24em] text-white/45 sm:px-6 sm:text-sm">
+            {topic}
+          </span>
+          <Asterisk className="h-3 w-3 text-[#c8ff4d]/70" />
+        </span>
+      ))}
+    </div>
+  );
 
-  // URL Path router synchronization listener
-  useEffect(() => {
-    const handleUrlChange = () => {
-      const path = window.location.pathname;
-      
-      if (path === "/" || path === "") {
-        setEntered(false);
-        setSelectedStory(null);
-        setIsWelcomeHome(false);
-      } else if (path === "/3d") {
-        setEntered(true);
-        setActiveTab("3d");
-        setSelectedStory(null);
-      } else if (path === "/grid") {
-        setEntered(true);
-        setActiveTab("grid");
-        setSelectedStory(null);
-      } else if (path === "/list") {
-        setEntered(true);
-        setActiveTab("list");
-        setSelectedStory(null);
-      } else if (path === "/about") {
-        setEntered(true);
-        setActiveTab("authors");
-        setSelectedStory(null);
-      } else if (path === "/saved") {
-        setEntered(true);
-        setActiveTab("saved");
-        setSelectedStory(null);
-      } else if (path === "/guideline") {
-        setEntered(true);
-        setActiveTab("guideline");
-        setSelectedStory(null);
-      } else if (path.startsWith("/story/")) {
-        const slug = path.replace("/story/", "");
-        const found = stories.find(s => s.slug === slug);
-        if (found) {
-          setEntered(true);
-          setSelectedStory(found);
-        } else {
-          pendingSlugRef.current = slug;
-        }
-      }
-    };
-
-    window.addEventListener("popstate", handleUrlChange);
-    handleUrlChange();
-
-    return () => window.removeEventListener("popstate", handleUrlChange);
-  }, [stories]);
-
-  useEffect(() => {
-    if (pendingSlugRef.current && stories.length > 0) {
-      const found = stories.find(s => s.slug === pendingSlugRef.current);
-      if (found) {
-        setSelectedStory(found);
-        setEntered(true);
-        pendingSlugRef.current = null;
-      }
-    }
-  }, [stories]);
-
-  // User Interaction State: Likes & Bookmarks saved to LocalStorage
-  const [likedSlugs, setLikedSlugs] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem("the-ink-home:likes");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [savedSlugs, setSavedSlugs] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem("the-ink-home:saves");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem("the-ink-home:likes", JSON.stringify(likedSlugs));
-  }, [likedSlugs]);
-
-  useEffect(() => {
-    localStorage.setItem("the-ink-home:saves", JSON.stringify(savedSlugs));
-  }, [savedSlugs]);
-
-  const handleToggleLike = (slug: string) => {
-    setLikedSlugs((prev) =>
-      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]
-    );
-  };
-
-  const handleToggleSave = (slug: string) => {
-    setSavedSlugs((prev) =>
-      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]
-    );
-  };
-  
-  // Ambient Music State (Non-intrusive sound effects)
-  const [musicPlaying, setMusicPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Auto-fetch stories & About board profiles from Express proxy servers
-  useEffect(() => {
-    async function fetchInitialData() {
-      try {
-        setLoading(true);
-        console.log("Fetching stories and author board metadata in parallel (with timeout)...");
-
-        // Helper: fetch with timeout
-        const fetchWithTimeout = (input: RequestInfo, timeout = 5000) => {
-          return Promise.race([
-            fetch(input),
-            new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), timeout))
-          ] as any);
-        };
-
-        // Base API URL configurable via Vite env: VITE_API_BASE
-        // If not provided, falls back to relative paths (useful for local dev or same-origin deploys)
-        const API_BASE = (import.meta as any).env?.VITE_API_BASE
-          ? String((import.meta as any).env.VITE_API_BASE).replace(/\/+$/g, "")
-          : "";
-
-        // Primary quick parallel attempt: server API (5s) and public proxy RSS (2s) raced
-        const rss2jsonQuick = (async () => {
-          try {
-            const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent("https://medium.com/feed/the-ink-home")}`;
-            const r = await fetchWithTimeout(rss2jsonUrl, 2000);
-            if (r && r.ok) return r.json();
-          } catch (e) {}
-          return null;
-        })();
-
-        const [storiesRes, aboutRes, rssQuickPayload] = await Promise.all([
-          fetchWithTimeout(`${API_BASE}/api/stories`, 5000).catch((e) => null),
-          fetchWithTimeout(`${API_BASE}/api/about`, 5000).catch((e) => null),
-          rss2jsonQuick
-        ]);
-        
-        if (storiesRes && storiesRes.ok) {
-          const storiesData = await storiesRes.json();
-          // Merge dynamic stories but keep fallback order as quick-first
-          const dynamic = storiesData.stories || [];
-          if (dynamic.length > 0) {
-            setStories((prev) => {
-              // Prefer dynamic stories but keep initial quick fallback while merging
-              const slugs = new Set(dynamic.map((s: Story) => s.slug));
-              const merged = [...dynamic, ...prev.filter((p) => !slugs.has(p.slug))];
-              return merged;
-            });
-          }
-        } else if (storiesRes === null) {
-          console.warn("Stories fetch timed out or failed quickly; using fallback stories for now.");
-        } else {
-          console.warn(`Stories endpoint returned: ${storiesRes.status}`);
-        }
-
-        // If rss2json quick returned useful items, merge them immediately for faster UX
-        if (rssQuickPayload && Array.isArray(rssQuickPayload.items) && rssQuickPayload.items.length > 0) {
-          try {
-            const mappedQuick: Story[] = rssQuickPayload.items.map((it: any) => {
-              const title = it.title || "Untitled";
-              const link = it.link || "";
-              const author = it.author || "The Ink Home";
-              const pubDate = it.pubDate || new Date().toUTCString();
-              const content = it.content || it.description || "";
-              const coverMatch = (content || "").match(/<img[^>]+src=[\"']([^\"']+)[\"']/i);
-              const cover = coverMatch && coverMatch[1] ? coverMatch[1] : undefined;
-              let slug = "";
-              if (link) {
-                const parts = link.split("/");
-                const last = parts[parts.length - 1];
-                slug = last ? last.split("?")[0] : "";
-              }
-              if (!slug) slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-              return {
-                title,
-                link,
-                author,
-                role: "",
-                pubDate,
-                categories: Array.isArray(it.categories) ? it.categories : ["Editorial"],
-                description: (content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().substring(0, 180) + "...",
-                content,
-                cover,
-                slug,
-                avatar: undefined
-              } as Story;
-            });
-
-            if (mappedQuick.length > 0) {
-              setStories((prev) => {
-                const slugs = new Set(prev.map((p) => p.slug));
-                const merged = [...mappedQuick.filter((m) => !slugs.has(m.slug)), ...prev];
-                return merged.slice(0, 30);
-              });
-            }
-          } catch (e) {
-            // ignore quick merge errors
-          }
-        }
-        
-        if (aboutRes && aboutRes.ok) {
-          const aboutData = await aboutRes.json();
-          setEditors(aboutData.editors || []);
-          setWriters(aboutData.writers || []);
-          if (aboutData.description) {
-            setAboutInfo({
-              description: aboutData.description,
-              officialWebsite: aboutData.officialWebsite || "https://theinkhome.live/"
-            });
-          }
-        } else if (aboutRes === null) {
-          console.warn("About fetch timed out or failed quickly; showing fallback about info.");
-        } else {
-          console.warn(`About page endpoint returned: ${aboutRes.status}`);
-        }
-        
-      } catch (err: any) {
-        console.error("Failed to load initial data quickly: ", err);
-        setError(err.message || "Unknown error connecting to publication");
-      } finally {
-        setLoading(false);
-      }
-
-      // If we still have fewer than desired stories, try public rss2json proxy directly (works on static hosts)
-      try {
-        const DESIRED = 30;
-        const CACHE_KEY = "the-ink-home:stories-cache";
-        const CACHE_TTL = 1000 * 60 * 30; // 30 minutes
-
-        const now = Date.now();
-        // Use cached stories if recent
-        try {
-          const cached = localStorage.getItem(CACHE_KEY);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            if (parsed?.ts && now - parsed.ts < CACHE_TTL && Array.isArray(parsed.stories) && parsed.stories.length >= DESIRED) {
-              setStories(parsed.stories.slice(0, DESIRED));
-              console.log("Using cached stories from localStorage");
-              return;
-            }
-          }
-        } catch (e) {
-          // ignore cache errors
-        }
-
-        if ((stories.length || 0) < DESIRED) {
-          console.log("Attempting rss2json proxy fetch for additional stories (target 30)...");
-          const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent("https://medium.com/feed/the-ink-home")}`;
-
-          const resp = await fetch(rss2jsonUrl, { cache: "no-cache" });
-          let mapped: Story[] = [];
-          if (resp.ok) {
-            const payload = await resp.json();
-            if (payload && Array.isArray(payload.items) && payload.items.length > 0) {
-              mapped = payload.items.map((it: any) => {
-                const title = it.title || "Untitled";
-                const link = it.link || "";
-                const author = it.author || "The Ink Home";
-                const pubDate = it.pubDate || new Date().toUTCString();
-                const content = it.content || it.description || "";
-                const coverMatch = (content || "").match(/<img[^>]+src=[\"']([^\"']+)[\"']/i);
-                const cover = coverMatch && coverMatch[1] ? coverMatch[1] : "";
-                let slug = "";
-                if (link) {
-                  const parts = link.split("/");
-                  const last = parts[parts.length - 1];
-                  slug = last ? last.split("?")[0] : "";
-                }
-                if (!slug) {
-                  slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-                }
-
-                return {
-                  title,
-                  link,
-                  author,
-                  role: "",
-                  pubDate,
-                  categories: Array.isArray(it.categories) ? it.categories : ["Editorial"],
-                  description: (content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().substring(0, 180) + "...",
-                  content,
-                  cover: cover || undefined,
-                  slug,
-                  avatar: undefined
-                } as Story;
-              });
-            }
-          }
-
-          // If rss2json didn't give enough items, try AllOrigins raw RSS and parse
-          if (mapped.length < DESIRED) {
-            try {
-              console.log("rss2json returned fewer items; trying AllOrigins raw RSS fetch...");
-              const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent("https://medium.com/feed/the-ink-home")}`;
-              const rawResp = await fetch(allOriginsUrl, { cache: "no-cache" });
-              if (rawResp.ok) {
-                const rawJson = await rawResp.json();
-                const xml = rawJson?.contents || rawJson;
-                if (xml && typeof xml === "string") {
-                  // Simple RSS parser to extract <item> blocks
-                  const items: Story[] = [];
-                  const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
-                  let m;
-                  while ((m = itemRegex.exec(xml)) !== null) {
-                    const item = m[1];
-                    const titleMatch = item.match(/<title>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/title>/i);
-                    const linkMatch = item.match(/<link>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/link>/i);
-                    const authorMatch = item.match(/<dc:creator>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/dc:creator>/i) || item.match(/<creator>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/creator>/i);
-                    const pubDateMatch = item.match(/<pubDate>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/pubDate>/i);
-                    const contentMatch = item.match(/<content:encoded>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([\s\S]*?))<\/content:encoded>/i) || item.match(/<description>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([\s\S]*?))<\/description>/i);
-
-                    const title = (titleMatch ? (titleMatch[1] || titleMatch[2]) : "Untitled") || "Untitled";
-                    const link = (linkMatch ? (linkMatch[1] || linkMatch[2]) : "") || "";
-                    const author = (authorMatch ? (authorMatch[1] || authorMatch[2]) : "The Ink Home") || "The Ink Home";
-                    const pubDate = (pubDateMatch ? (pubDateMatch[1] || pubDateMatch[2]) : new Date().toUTCString()) || new Date().toUTCString();
-                    const content = (contentMatch ? (contentMatch[1] || contentMatch[2]) : "") || "";
-                    const coverMatch = content.match(/<img[^>]+src=[\"']([^\"']+)[\"']/i);
-                    const cover = coverMatch && coverMatch[1] ? coverMatch[1] : undefined;
-
-                    let slug = "";
-                    if (link) {
-                      const parts = link.split("/");
-                      const last = parts[parts.length - 1];
-                      slug = last ? last.split("?")[0] : "";
-                    }
-                    if (!slug) slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-
-                    items.push({
-                      title,
-                      link,
-                      author,
-                      role: "",
-                      pubDate,
-                      categories: ["Editorial"],
-                      description: content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().substring(0, 180) + "...",
-                      content,
-                      cover,
-                      slug,
-                      avatar: undefined
-                    });
-                  }
-
-                  if (items.length > 0) {
-                    // append items not already in mapped
-                    const existingSlugs = new Set(mapped.map((s) => s.slug));
-                    for (const it of items) {
-                      if (!existingSlugs.has(it.slug)) mapped.push(it);
-                      if (mapped.length >= DESIRED) break;
-                    }
-                  }
-                }
-              }
-            } catch (allErr) {
-              console.warn("AllOrigins RSS fetch failed:", allErr);
-            }
-          }
-
-          // If still short, aggressively scrape the publication HTML for article links and fetch individual pages
-          if (mapped.length < DESIRED) {
-            try {
-              console.log("Still short on items; scraping publication homepage for article links via AllOrigins...");
-              const pubUrl = "https://medium.com/the-ink-home";
-              const pubAllUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(pubUrl)}`;
-              const pubResp = await fetch(pubAllUrl, { cache: "no-cache" });
-              if (pubResp.ok) {
-                const pubJson = await pubResp.json();
-                const html = pubJson?.contents || pubJson;
-                if (html && typeof html === "string") {
-                  // Find links to articles under the publication
-                  const linkRegex = /https:\/\/medium.com\/the-ink-home\/[a-z0-9\-_%]+/ig;
-                  const found = new Set<string>();
-                  let m;
-                  while ((m = linkRegex.exec(html)) !== null) {
-                    found.add(m[0]);
-                  }
-
-                  // Also try relative links
-                  const relRegex = /href=["']\/(?:the-ink-home)\/([a-z0-9\-_%]+)["']/ig;
-                  while ((m = relRegex.exec(html)) !== null) {
-                    found.add(`https://medium.com/the-ink-home/${m[1]}`);
-                  }
-
-                  const links = Array.from(found).slice(0, DESIRED * 2);
-                  // Fetch each article page sequentially until we have DESIRED items
-                  for (const link of links) {
-                    if (mapped.length >= DESIRED) break;
-                    try {
-                      const articleAll = `https://api.allorigins.win/get?url=${encodeURIComponent(link)}`;
-                      const artResp = await fetch(articleAll, { cache: "no-cache" });
-                      if (!artResp.ok) continue;
-                      const artJson = await artResp.json();
-                      const artHtml = artJson?.contents || artJson;
-                      if (!artHtml || typeof artHtml !== "string") continue;
-
-                      // Extract title, content snippet, image, author, pubDate
-                      const tMatch = artHtml.match(/<title>([^<]+)<\/title>/i);
-                      const title = (tMatch && tMatch[1]) ? tMatch[1].replace(/\s+\|\s+Medium.*$/i, "").trim() : "Untitled";
-                      const linkMatch = link;
-                      const authorMatch = artHtml.match(/rel=\"author\"[^>]*>([^<]+)<\/a>/i) || artHtml.match(/<meta name=\"author\" content=\"([^\"]+)\"/i);
-                      const author = authorMatch ? (authorMatch[1] || authorMatch[0]) : "The Ink Home";
-                      const dateMatch = artHtml.match(/<meta property=\"article:published_time\" content=\"([^\"]+)\"/i) || artHtml.match(/<time[^>]*datetime=\"([^\"]+)\"/i);
-                      const pubDate = dateMatch ? (dateMatch[1] || new Date().toUTCString()) : new Date().toUTCString();
-                      const contentMatch = artHtml.match(/<article[\s\S]*?<\/article>/i) || artHtml.match(/<section[\s\S]*?<\/section>/i) || ["",""];
-                      const content = contentMatch && contentMatch[0] ? contentMatch[0] : "";
-                      const imgMatch = artHtml.match(/<img[^>]+src=[\"']([^\"']+)[\"']/i);
-                      const cover = imgMatch && imgMatch[1] ? imgMatch[1] : undefined;
-                      let slug = "";
-                      try {
-                        const parts = link.split("/");
-                        slug = parts[parts.length - 1] || parts[parts.length - 2] || title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-                      } catch (e) {
-                        slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-                      }
-
-                      const item: Story = {
-                        title: title.trim(),
-                        link: linkMatch,
-                        author: author.trim(),
-                        role: "",
-                        pubDate,
-                        categories: ["Editorial"],
-                        description: (content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().substring(0, 180) + "...",
-                        content,
-                        cover,
-                        slug,
-                        avatar: undefined
-                      };
-
-                      // Dedupe and add
-                      if (!mapped.some((s) => s.slug === item.slug)) {
-                        mapped.push(item);
-                      }
-                    } catch (e) {
-                      // continue on per-article errors
-                      continue;
-                    }
-                  }
-                }
-              }
-            } catch (scrapeErr) {
-              console.warn("Publication scraping failed:", scrapeErr);
-            }
-          }
-
-          // Merge mapped with current stories (dedupe)
-          if (mapped.length > 0) {
-            setStories((prev) => {
-              const slugs = new Set();
-              const merged: Story[] = [];
-              for (const s of mapped) {
-                if (!slugs.has(s.slug)) {
-                  merged.push(s);
-                  slugs.add(s.slug);
-                }
-              }
-              for (const p of prev) {
-                if (!slugs.has(p.slug)) {
-                  merged.push(p);
-                  slugs.add(p.slug);
-                }
-              }
-              const final = merged.slice(0, DESIRED);
-              // Cache to localStorage
-              try {
-                localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), stories: final }));
-              } catch (e) {}
-              return final;
-            });
-          }
-        }
-      } catch (rssErr) {
-        console.warn("rss2json/allorigins fallback failed:", rssErr);
-      }
-    }
-    fetchInitialData();
-  }, []);
-
-  // Set up Ambient Soundscape & Scroll Velocity tracking
-  const lastScrollY = useRef(0);
-  const lastScrollTime = useRef(Date.now());
-  const scrollVelocity = useRef(0);
-
-  useEffect(() => {
-    // Generate a beautiful, low-frequency cosmic synth tone as standard audio
-    // helper so we don't have to pool heavy external audio files. 
-    // This is creative web acoustics at its finest!
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    
-    // Create an audio oscillator that acts as a soothing hum when toggled
-    audioRef.current = {
-      play: () => {
-        if (audioContext.state === "suspended") {
-          audioContext.resume();
-        }
-        // Synthesize an infinite ambient wave
-        const osc = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(55, audioContext.currentTime); // Low A hum
-        
-        // Lowpass filter for deep acoustic reading atmosphere
-        const filter = audioContext.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.frequency.setValueAtTime(220, audioContext.currentTime);
-        filter.Q.setValueAtTime(1.0, audioContext.currentTime);
-
-        // Soft volume to hold a gentle focus sound
-        gainNode.gain.setValueAtTime(0.015, audioContext.currentTime);
-        
-        // Add subtle low frequency LFO pitch modulation
-        const lfo = audioContext.createOscillator();
-        const lfoGain = audioContext.createGain();
-        lfo.frequency.setValueAtTime(0.15, audioContext.currentTime); // Ultra slow rhythm
-        lfoGain.gain.setValueAtTime(5, audioContext.currentTime);
-        
-        // Secondary shimmer oscillator (higher pitch) that emerges only when scrolling
-        const shimmerOsc = audioContext.createOscillator();
-        shimmerOsc.type = "triangle";
-        shimmerOsc.frequency.setValueAtTime(440, audioContext.currentTime);
-        const shimmerGain = audioContext.createGain();
-        shimmerGain.gain.setValueAtTime(0.0, audioContext.currentTime); // Start silent
-
-        lfo.connect(lfoGain);
-        lfoGain.connect(osc.frequency);
-        
-        osc.connect(filter);
-        shimmerOsc.connect(shimmerGain);
-        shimmerGain.connect(filter);
-        
-        filter.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        osc.start();
-        lfo.start();
-        shimmerOsc.start();
-        
-        (audioRef.current as any).audioContext = audioContext;
-        (audioRef.current as any).oscillator = osc;
-        (audioRef.current as any).lfo = lfo;
-        (audioRef.current as any).shimmerOsc = shimmerOsc;
-        (audioRef.current as any).shimmerGain = shimmerGain;
-        (audioRef.current as any).filter = filter;
-        (audioRef.current as any).gainNode = gainNode;
-      },
-      pause: () => {
-        try {
-          const ref = audioRef.current as any;
-          if (ref.oscillator) ref.oscillator.stop();
-          if (ref.lfo) ref.lfo.stop();
-          if (ref.shimmerOsc) ref.shimmerOsc.stop();
-          if (ref.audioContext) ref.audioContext.suspend();
-        } catch (e) {}
-      }
-    } as any;
-
-    // Scroll tracker
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      const currentTime = Date.now();
-      const dt = Math.max(currentTime - lastScrollTime.current, 10);
-      const dy = Math.abs(currentScrollY - lastScrollY.current);
-      
-      const velocity = dy / dt; // pixels per ms
-      scrollVelocity.current = Math.min(velocity, 5); // cap at reasonable speed
-      
-      lastScrollY.current = currentScrollY;
-      lastScrollTime.current = currentTime;
-    };
-
-    // Animation frame tick loop to decay scroll velocity smoothly and modulate audio
-    let animationFrameId: number;
-    let lastTickTime = Date.now();
-
-    const tick = () => {
-      const now = Date.now();
-      const dt = (now - lastTickTime) / 1000;
-      lastTickTime = now;
-
-      // Decay velocity
-      if (scrollVelocity.current > 0) {
-        scrollVelocity.current -= scrollVelocity.current * 3.5 * dt;
-        if (scrollVelocity.current < 0.001) scrollVelocity.current = 0;
-      }
-
-      // Modulate synth properties if running
-      const ref = audioRef.current as any;
-      if (ref && ref.audioContext && ref.audioContext.state === "running") {
-        const vel = scrollVelocity.current;
-        const curTime = ref.audioContext.currentTime;
-
-        // Modulate main filter frequency (up to 1800Hz)
-        const targetFilterFreq = 220 + vel * 320; // 220Hz -> ~1820Hz at max velocity
-        if (ref.filter) {
-          ref.filter.frequency.setTargetAtTime(targetFilterFreq, curTime, 0.12);
-          ref.filter.Q.setTargetAtTime(1.0 + vel * 2.0, curTime, 0.12);
-        }
-
-        // Modulate secondary shimmer volume & pitch based on velocity
-        if (ref.shimmerGain && ref.shimmerOsc) {
-          const targetShimmerVol = vel * 0.012; // max shimmer volume multiplier
-          ref.shimmerGain.gain.setTargetAtTime(targetShimmerVol, curTime, 0.15);
-
-          const targetShimmerFreq = 440 + vel * 80;
-          ref.shimmerOsc.frequency.setTargetAtTime(targetShimmerFreq, curTime, 0.18);
-        }
-      }
-
-      animationFrameId = requestAnimationFrame(tick);
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    animationFrameId = requestAnimationFrame(tick);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      cancelAnimationFrame(animationFrameId);
-      try {
-        const ref = audioRef.current as any;
-        if (ref && ref.oscillator) ref.oscillator.stop();
-        if (ref && ref.shimmerOsc) ref.shimmerOsc.stop();
-      } catch (e) {}
-    };
-  }, []);
-
-  const handleToggleSound = () => {
-    if (musicPlaying) {
-      audioRef.current?.pause();
-      setMusicPlaying(false);
-    } else {
-      audioRef.current?.play();
-      setMusicPlaying(true);
-    }
-  };
-
-  const enterWebsite = () => {
-    setIsWelcomeHome(true);
-    setEntered(true);
-    setCinematicComplete(false);
-    navigateTo("/" + (activeTab === "authors" ? "about" : activeTab));
-    // Auto start the sound on entrance for premium cinematic audio feedback
-    if (!musicPlaying) {
-      try {
-        audioRef.current?.play();
-        setMusicPlaying(true);
-      } catch (e) {}
-    }
-  };
-
-  const handleCinematicComplete = () => {
-    setCinematicComplete(true);
-  };
-
-   return (
-     <div 
-       data-atmosphere={bgMode}
-       className="relative min-h-screen bg-[#050505] text-white font-sans overflow-x-hidden selection:bg-[var(--atmo-text)]/30 selection:text-white"
-     >
-{!cinematicComplete && (
-           <CinematicLoader onComplete={handleCinematicComplete} isWelcomeHome={isWelcomeHome} />
-         )}
-       
-       <DataStreamBackground baseHue={bgMode === "stellar" ? 190 : bgMode === "ink" ? 235 : bgMode === "forest" ? 35 : bgMode === "constellation" ? 160 : 190} />
-       
-       {/* Carbon & Noise Texture Overlays */}
-       <div className="absolute inset-0 pointer-events-none opacity-[0.03] contrast-150 mix-blend-overlay carbon-texture z-[2]" />
-       <div className="absolute inset-0 pointer-events-none opacity-[0.02] noise-overlay z-[2]" />
-       
-       {/* Floating Atmosphere Customizer Deck */}
-      <div 
-        className="fixed bottom-16 left-2 sm:bottom-6 sm:left-6 z-40 flex items-center gap-1 sm:gap-1.5 p-0.5 sm:p-1 bg-black/60 border border-white/10 rounded-full text-[8px] sm:text-[10px] font-mono uppercase tracking-wider backdrop-blur-xl shadow-2xl transition-all duration-300 hover:border-[var(--glow-text)]/40 scale-90 sm:scale-100 origin-bottom-left"
-        id="atmosphere-deck"
-      >
-        <span className="hidden md:inline-block px-2 text-slate-500 font-bold select-none text-[9px] uppercase tracking-widest pl-2.5">Atmosphere:</span>
-        <button
-          onClick={() => setBgMode("stellar")}
-        className={`px-2.5 py-1 rounded-full transition-all cursor-pointer flex items-center gap-1 ${
-          bgMode === "stellar" 
-            ? "bg-[var(--atmo-text)] text-black font-extrabold shadow-[0_0_12px_var(--atmo-glow)]" 
-            : "text-slate-400 hover:text-[var(--atmo-text)]"
-        }`}
-        title="Stellar Universe Node"
-      >
-        <span className={`w-1 h-1 rounded-full ${bgMode === "stellar" ? "bg-black" : "bg-current opacity-70"}`} />
-        Cosmic
-      </button>
-      <button
-        onClick={() => setBgMode("ink")}
-        className={`px-2.5 py-1 rounded-full transition-all cursor-pointer flex items-center gap-1 ${
-          bgMode === "ink" 
-            ? "bg-[var(--atmo-text)] text-black font-extrabold shadow-[0_0_12px_var(--atmo-glow)]" 
-            : "text-slate-400 hover:text-[var(--atmo-text)]"
-        }`}
-        title="Flowing Writer's Ink"
-      >
-        <span className={`w-1 h-1 rounded-full ${bgMode === "ink" ? "bg-black" : "bg-current opacity-70"}`} />
-        Ink
-      </button>
-      <button
-        onClick={() => setBgMode("forest")}
-        className={`px-2.5 py-1 rounded-full transition-all cursor-pointer flex items-center gap-1 ${
-          bgMode === "forest" 
-            ? "bg-[var(--atmo-text)] text-black font-extrabold shadow-[0_0_12px_var(--atmo-glow)]" 
-            : "text-slate-400 hover:text-[var(--atmo-text)]"
-        }`}
-        title="Cozy Forest Cabin Embers"
-      >
-        <span className={`w-1 h-1 rounded-full ${bgMode === "forest" ? "bg-black" : "bg-current opacity-70"}`} />
-        Cabin
-      </button>
-      <button
-        onClick={() => setBgMode("constellation")}
-        className={`px-2.5 py-1 rounded-full transition-all cursor-pointer flex items-center gap-1 ${
-          bgMode === "constellation" 
-            ? "bg-[var(--atmo-text)] text-black font-extrabold shadow-[0_0_12px_var(--atmo-glow)]" 
-            : "text-slate-400 hover:text-[var(--atmo-text)]"
-        }`}
-        title="Thought Constellations Network"
-      >
-        <span className={`w-1 h-1 rounded-full ${bgMode === "constellation" ? "bg-black" : "bg-current opacity-70"}`} />
-        Neural
-        </button>
+  return (
+    <div className="relative overflow-hidden border-y border-white/10 bg-[#070709] py-3.5">
+      <div className="animate-marquee">
+        {content}
+        {content}
+        {content}
+        {content}
       </div>
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-[#070709] to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-[#070709] to-transparent" />
+    </div>
+  );
+}
 
-      {/* Floating Sound Controller */}
-      <button 
-        onClick={handleToggleSound}
-        className="fixed bottom-20 right-3 sm:bottom-6 sm:right-6 z-50 flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 sm:py-2.5 bg-black/60 hover:bg-black/85 border border-white/10 hover:border-[var(--glow-text)]/40 rounded-full text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-slate-400 hover:text-white transition-all backdrop-blur-xl cursor-pointer shadow-2xl hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]"
-        title={musicPlaying ? "Mute Cosmic Hum" : "Unmute Cosmic Hum"}
-      >
-        {musicPlaying ? (
-          <>
-            <div className="sound-wave-container">
-              <span className="sound-wave-bar" />
-              <span className="sound-wave-bar" />
-              <span className="sound-wave-bar" />
-              <span className="sound-wave-bar" />
-            </div>
-            <span className="text-[8px] sm:text-[9px] text-[var(--glow-text)] atmosphere-text pr-0.5 sm:pr-1 font-bold">AMBIENT</span>
-          </>
-        ) : (
-          <>
-            <VolumeX className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-            <span className="text-[8px] sm:text-[9px] pr-0.5 sm:pr-1">MUTED</span>
-          </>
-        )}
-      </button>
+function Hero({
+  featured,
+  storyCount,
+  contributorCount,
+  loading,
+  onOpen,
+  onNavigate,
+}: {
+  featured?: Story;
+  storyCount: number;
+  contributorCount: number;
+  loading: boolean;
+  onOpen: (story: Story) => void;
+  onNavigate: (path: string) => void;
+}) {
+  return (
+    <section className="relative overflow-hidden">
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 50% at 15% 0%, rgba(200,255,77,0.10), transparent 62%), radial-gradient(ellipse 45% 55% at 95% 10%, rgba(167,139,250,0.10), transparent 65%)",
+        }}
+      />
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.035]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
+          backgroundSize: "72px 72px",
+          maskImage: "radial-gradient(ellipse at 50% 30%, black, transparent 78%)",
+        }}
+      />
 
-      <AnimatePresence mode="wait">
-        
-        {/* VIEW 1: CINEMATIC PORTAL LANDING PAGE */}
-        {!entered ? (
-          <motion.div
-            key="landing-page"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -40 }}
-            transition={{ duration: 0.8, ease: "easeInOut" }}
-            onMouseMove={handleMouseMove}
-            className="relative min-h-screen flex flex-col justify-between z-10 px-6 py-8"
-          >
-            {/* Top Logotype Row */}
-            <motion.header
-              initial={{ opacity: 0, y: -20 }}
+      <div className="relative mx-auto max-w-7xl px-4 pb-16 pt-28 sm:px-8 sm:pb-20 sm:pt-36">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: EASE }}
+          className="flex flex-wrap items-center gap-3"
+        >
+          <span className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.22em] text-white/55">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#c8ff4d] opacity-60" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#c8ff4d]" />
+            </span>
+            A Medium publication · Words feel at home
+          </span>
+          <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/25">
+            {loading ? "Syncing with Medium…" : `${storyCount} latest stories`}
+          </span>
+        </motion.div>
+
+        <div className="mt-7 grid items-center gap-10 lg:grid-cols-[1.02fr_0.98fr] lg:gap-14">
+          <div>
+            <motion.h1
+              initial={{ opacity: 0, y: 22 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
-              className="w-full flex items-center justify-between max-w-6xl mx-auto"
+              transition={{ duration: 0.85, delay: 0.08, ease: EASE }}
+              className="font-display text-[clamp(2.7rem,7.2vw,5.4rem)] font-black leading-[0.92] tracking-[-0.05em] text-white"
             >
-              <div className="flex items-center gap-2.5">
-                <Logo size={46} textColor="text-slate-200" />
-              </div>
-              <a 
-                href="https://medium.com/the-ink-home" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-slate-400 hover:text-[var(--atmo-text)] hover:border-[var(--atmo-border)] transition-all border border-transparent px-3 py-1.5 rounded bg-white/5"
-                id="landing-medium-link"
-              >
-                MEDIUM EDITION <ExternalLink className="w-3 h-3 text-[var(--atmo-text)]" />
-              </a>
-            </motion.header>
-
-            {/* Core Cinematic Hero */}
-            <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6 sm:space-y-8 max-w-4xl mx-auto my-8 sm:my-12">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 1.2, delay: 0.2 }}
-                className="space-y-6"
-              >
-                {/* Visual Label Banner */}
-                <div className="inline-block px-4 py-1.5 bg-[var(--atmo-surface)] border border-[var(--atmo-border)] rounded text-[10px] font-bold tracking-[0.2em] text-[var(--atmo-text)] uppercase">
-                  Featured Edition — Vol. 082
-                </div>
-                {/* Main Heading title with custom gradient styling and 3D kinetic interaction */}
-          <h1 
-            style={{
-              letterSpacing: `${-0.05 + Math.abs(coords.x) * 0.03}em`,
-              transform: `perspective(1000px) rotateY(${coords.x * 12}deg) rotateX(${-coords.y * 12}deg) translateY(${scrollY * -0.1}px)`,
-              textShadow: `${-coords.x * 12}px ${-coords.y * 12}px 24px var(--glow-color)`,
-              transition: "transform 0.08s ease-out, letter-spacing 0.15s ease-out, text-shadow 0.15s ease-out"
-            }}
-            className="text-5xl sm:text-6xl md:text-8xl lg:text-[110px] leading-[0.85] font-black tracking-tighter mb-4 sm:mb-6 italic uppercase font-display bg-gradient-to-r from-white via-[var(--atmo-text)] to-[var(--atmo-text)] bg-clip-text text-transparent select-none"
-          >
-            The Ink<br />Home
-          </h1>
-          <p className="max-w-xl mx-auto text-xs sm:text-sm md:text-base text-slate-400 leading-relaxed font-light tracking-wide px-4 sm:px-0">
-            Where spatial typography, code shaders, and cyber-philosophical stories merge into floating geometric objects in space.
-          </p>
-              </motion.div>
- 
-              {/* Enter CTA Trigger BUTTON */}
-<motion.div
-                   initial={{ opacity: 0, y: 15, scale: 0.95 }}
-                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                   transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
-                 >
-                   <button
-                     onClick={enterWebsite}
-                     className="px-6 py-3 sm:px-8 sm:py-4 bg-white text-black font-extrabold uppercase tracking-[0.2em] text-[10px] sm:text-[11px] hover:bg-[var(--atmo-text)] hover:shadow-[0_0_35px_var(--atmo-glow)] transition-all duration-300 cursor-pointer flex items-center gap-2 z-20 mx-auto"
-                     id="enter-portal-btn"
-                   >
-                     Enter The Ink Home
-                     <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black" />
-                   </button>
-                 </motion.div>
-            </div>
-
-            {/* Bottom Section: Auto-scrolling Featured Stories Cinematic strip */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="w-full max-w-6xl mx-auto"
-            >
-              {loading ? (
-                <div className="flex justify-center py-4">
-                  <div className="w-4 h-4 border border-[var(--atmo-text)] border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.9 }}
-                    className="flex items-center justify-between text-[9px] sm:text-[10px] font-mono tracking-widest uppercase text-slate-500 px-2 sm:px-0"
-                  >
-                    <span className="flex items-center gap-1.5 sm:gap-2">
-                      <Radio className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[var(--atmo-text)]" />
-                      SATELLITE MAGAZINE LOOP
-                    </span>
-                    <span className="hidden sm:inline">Scroll or Click items to read</span>
-                  </motion.div>
-
-                  {/* Horizontal Auto-Scroller ticker containing stories summaries */}
-                  {/* Subscribe card (inline) */}
-<motion.div
-                     initial={{ opacity: 0, y: 20 }}
-                     animate={{ opacity: 1, y: 0 }}
-                     transition={{ duration: 0.6, delay: 1.0 }}
-                     className="max-w-4xl mx-auto mb-3 sm:mb-4 px-4 sm:px-0"
-                   >
-                     <Subscribe />
-                   </motion.div>
-                   
-                    {/* The Bento Archive */}
-                   <motion.div
-                     initial={{ opacity: 0, y: 30 }}
-                     animate={{ opacity: 1, y: 0 }}
-                     transition={{ duration: 0.8, delay: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                     className="mt-6 sm:mt-8"
-                   >
-                     <div className="flex items-center justify-between mb-4 px-2 sm:px-0">
-                       <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/70">
-                         The Bento Archive
-                       </h3>
-                       <span className="text-[9px] text-slate-500">{stories.length} Stories</span>
-                     </div>
-                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6">
-                       {stories.map((story, index) => (
-                         <motion.div
-                           layout
-                           key={story.slug}
-                           className="group cursor-pointer glass-card tactile-card ripple-host overflow-hidden flex flex-col justify-between min-h-[18rem] sm:min-h-[22rem]"
-                           onClick={() => {
-                             setSelectedStory(story);
-                             setEntered(true);
-                             navigateTo(`/story/${story.slug}`);
-                           }}
-                           initial={{ opacity: 0, y: 20 }}
-                           animate={{ opacity: 1, y: 0 }}
-                           transition={{ type: "spring", stiffness: 260, damping: 20, delay: index * 0.03 }}
-                           id={`grid-card-${story.slug}`}
-                           whileHover={{ y: -4, rotateX: 2, rotateY: -2, scale: 1.02 }}
-                         >
-                           {/* Media Section */}
-                           <div className="relative w-full h-32 sm:h-44 overflow-hidden border-b border-white/5">
-                              <img
-                                src={story.cover || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80"}
-                                alt={story.title}
-                                referrerPolicy="no-referrer"
-                                width="400"
-                                height="300"
-                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                decoding="async"
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                                loading="lazy"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80";
-                                }}
-                             />
-                             <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/10" />
-                             
-                             {/* Floating Date Badge */}
-                             <span className="absolute top-3 left-3 px-2 py-0.5 rounded-none font-mono text-[9px] uppercase tracking-wider bg-black border border-white/5 text-slate-300">
-                               {new Date(story.pubDate).toLocaleDateString("en-US", {
-                                 month: "short",
-                                 day: "numeric",
-                               })}
-                             </span>
-                      
-                             {/* Primary Tag */}
-                             {story.categories[0] && (
-                               <span className="absolute bottom-3 right-3 px-2.5 py-0.5 rounded-none font-mono text-[9px] uppercase tracking-wider bg-black/80 text-[var(--glow-text)] border border-[var(--glow-text)]/25">
-                                 {story.categories[0]}
-                               </span>
-                             )}
-                           </div>
-                      
-                           {/* Data Section */}
-                           <div className="flex-1 p-3 sm:p-5 flex flex-col justify-between bg-black/20">
-                             <div>
-                               {/* Author Line */}
-                               <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
-                                 <AvatarImage
-                                   src={story.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde"}
-                                   alt={story.author}
-                                   className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-none object-cover border border-white/5"
-                                 />
-                                 <span className="text-[10px] sm:text-[11px] font-mono text-slate-400">
-                                   {story.author}
-                                 </span>
-                               </div>
-   
-                               {/* Title */}
-                               <h3 className="font-sans font-medium text-white text-sm sm:text-base group-hover:text-[var(--glow-text)] line-clamp-2 leading-snug transition-colors">
-                                 {story.title}
-                               </h3>
-   
-                               {/* Snippet Description */}
-                               <p className="text-[11px] sm:text-xs mt-1.5 sm:mt-2.5 text-slate-400 line-clamp-2 leading-relaxed font-light hidden sm:block">
-                                 {story.description}
-                               </p>
-                             </div>
-   
-                             <div className="flex items-center justify-between pt-2 sm:pt-3 border-t border-white/5 text-[10px] sm:text-[11px] font-mono mt-2 sm:mt-4">
-                               <span className="text-slate-500">
-                                 by {story.role || "Staff"}
-                               </span>
-                                
-                               {/* Floating Like & Save quick controls */}
-                               <div className="flex items-center gap-2 sm:gap-3">
-                                 <button
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     handleToggleLike(story.slug);
-                                   }}
-                                   className={`flex items-center gap-1 transition-colors p-1.5 sm:p-1 cursor-pointer hover:text-[var(--glow-text)] min-w-[28px] sm:min-w-[32px] min-h-[28px] sm:min-h-[32px] justify-center ${likedSlugs.includes(story.slug) ? "text-[var(--glow-text)] font-bold" : "text-slate-500"}`}
-                                   title={likedSlugs.includes(story.slug) ? "Unlike" : "Like"}
-                                 >
-                                   <Heart className={`w-3.5 h-3.5 ${likedSlugs.includes(story.slug) ? "fill-current text-[var(--glow-text)]" : ""}`} />
-                                   <span className="text-[10px] sm:text-[11px]">{getLikesCount(story.title, likedSlugs.includes(story.slug))}</span>
-                                 </button>
-                                 
-                                 <button
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     handleToggleSave(story.slug);
-                                   }}
-                                   className={`flex items-center gap-1 transition-colors p-1.5 sm:p-1 cursor-pointer hover:text-[var(--glow-text)] min-w-[28px] sm:min-w-[32px] min-h-[28px] sm:min-h-[32px] justify-center ${savedSlugs.includes(story.slug) ? "text-[var(--glow-text)]" : "text-slate-500"}`}
-                                   title={savedSlugs.includes(story.slug) ? "Remove Bookmark" : "Bookmark Story"}
-                                 >
-                                   <Bookmark className={`w-3.5 h-3.5 ${savedSlugs.includes(story.slug) ? "fill-current" : ""}`} />
-                                 </button>
-
-                                 <span className="flex items-center gap-1 text-[var(--glow-text)] font-bold group-hover:text-white transition-colors ml-0.5 sm:ml-1 text-[10px] sm:text-[11px]">
-                                   Read
-                                   <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                                 </span>
-                               </div>
-                             </div>
-                           </div>
-                         </motion.div>
-                       ))}
-                     </div>
-                    </motion.div>
-                 </div>
-              )}
-            </motion.div>
-            
-          </motion.div>
-        ) : (
-          
-           /* VIEW 2: CORE INTERACTIVE SPATIAL DASHBOARD PLATFORM */
-          <motion.div
-            key="dashboard-app"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-            className="relative z-10 flex flex-col min-h-screen bg-[#050505]"
-          >
-            {/* Left Workspace Sidebar */}
-            <header className="hidden md:flex fixed left-0 top-0 bottom-0 z-30 w-16 flex-col items-center justify-between py-4 border-r border-white/10 bg-[#050505]/95 backdrop-blur-xl">
-              <div className="flex flex-col items-center gap-1 w-full">
-                <div 
-                  onClick={() => {
-                    setEntered(false);
-                    navigateTo("/");
-                  }} 
-                  className="p-1.5 cursor-pointer group mb-2"
-                  title="Home"
+              Where words feel{" "}
+              <span className="relative inline-block italic text-[#c8ff4d]">
+                at home
+                <svg
+                  className="absolute -bottom-1 left-0 w-full"
+                  viewBox="0 0 200 12"
+                  fill="none"
+                  preserveAspectRatio="none"
                 >
-                  <Logo size={28} />
+                  <path
+                    d="M2 9C40 3 80 3 110 6C140 9 170 8 198 4"
+                    stroke="#c8ff4d"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>.
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.18, ease: EASE }}
+              className="mt-6 max-w-xl text-[15px] leading-relaxed text-white/55 sm:text-base"
+            >
+              An independent publication of essays on technology, culture, creativity and the quiet parts of
+              being human. Thirty to fifty new stories, gathered straight from our Medium home.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.28, ease: EASE }}
+              className="mt-8 flex flex-wrap items-center gap-3"
+            >
+              <button
+                onClick={() => onNavigate("/#latest")}
+                className="group flex items-center gap-2 rounded-full bg-white px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-[#c8ff4d]"
+              >
+                Read the latest
+                <ArrowDownRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:translate-y-0.5" />
+              </button>
+              <button
+                onClick={() => onNavigate("/#writers")}
+                className="flex items-center gap-2 rounded-full border border-white/15 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-white/70 transition-colors hover:border-white/40 hover:text-white"
+              >
+                Meet the writers
+                <ArrowUpRight className="h-4 w-4" />
+              </button>
+            </motion.div>
+
+            <motion.dl
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.9, delay: 0.45 }}
+              className="mt-10 grid max-w-lg grid-cols-3 gap-6 border-t border-white/10 pt-6"
+            >
+              {[
+                [String(storyCount).padStart(2, "0"), "Latest stories"],
+                [String(contributorCount).padStart(2, "0"), "Contributors"],
+                ["Weekly", "New dispatches"],
+              ].map(([value, label]) => (
+                <div key={label}>
+                  <dt className="font-display text-2xl font-bold text-white sm:text-3xl">{value}</dt>
+                  <dd className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-white/35">{label}</dd>
                 </div>
+              ))}
+            </motion.dl>
+          </div>
 
-                <div className="w-8 h-px bg-white/10 my-1" />
+          {featured && (
+            <motion.button
+              initial={{ opacity: 0, y: 30, rotate: 1.5 }}
+              animate={{ opacity: 1, y: 0, rotate: 0 }}
+              transition={{ duration: 0.9, delay: 0.2, ease: EASE }}
+              whileHover={{ y: -6, rotate: -0.4 }}
+              onClick={() => onOpen(featured)}
+              className="group relative block w-full text-left"
+            >
+              <div
+                className="pointer-events-none absolute -inset-8 rounded-full opacity-40 blur-3xl"
+                style={{ background: "radial-gradient(circle, rgba(200,255,77,0.22), transparent 65%)" }}
+              />
+              <div className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl border border-white/15 bg-[#101114] shadow-[0_40px_100px_-40px_rgba(0,0,0,0.95)] sm:aspect-[5/4] lg:aspect-[4/4.6]">
+                <StoryCover
+                  src={featured.cover}
+                  alt={featured.title}
+                  seed={featured.title}
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  priority
+                  className="transition-transform duration-[900ms] group-hover:scale-[1.045]"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-black/10" />
+                <div className="absolute inset-x-0 top-0 flex items-center justify-between p-5">
+                  <span className="flex items-center gap-2 rounded-full border border-[#c8ff4d]/30 bg-black/50 px-3 py-1.5 font-mono text-[8px] uppercase tracking-[0.2em] text-[#c8ff4d] backdrop-blur">
+                    <Sparkles className="h-3 w-3" /> Featured
+                  </span>
+                  <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">
+                    {formatDate(featured.pubDate, "short")}
+                  </span>
+                </div>
+                <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
+                  <div className="flex flex-wrap gap-1.5">
+                    {featured.categories.slice(0, 2).map((category) => (
+                      <span
+                        key={category}
+                        className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 font-mono text-[8px] uppercase tracking-[0.14em] text-white/80 backdrop-blur"
+                      >
+                        {category}
+                      </span>
+                    ))}
+                  </div>
+                  <h2 className="mt-3 font-display text-2xl font-bold leading-[1.05] tracking-tight text-white sm:text-3xl">
+                    {featured.title}
+                  </h2>
+                  <p className="mt-2 line-clamp-2 max-w-lg text-[12.5px] leading-relaxed text-white/55">
+                    {stripHtml(featured.description)}
+                  </p>
+                  <div className="mt-4 flex items-center justify-between border-t border-white/15 pt-3">
+                    <span className="flex items-center gap-2">
+                      <AuthorAvatar
+                        name={featured.author}
+                        src={featured.avatar}
+                        className="h-6 w-6 rounded-full text-[8px]"
+                      />
+                      <span className="text-[11px] text-white/70">{featured.author}</span>
+                    </span>
+                    <span className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-white/45">
+                      <Clock className="h-3 w-3" /> {readingTime(featured)} min
+                      <ArrowUpRight className="ml-1 h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </motion.button>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
 
-                <nav className="flex flex-col items-center gap-1 w-full px-1.5">
-                  <button
-                    onClick={() => handleTabChange("3d")}
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer relative ${
-                      activeTab === "3d" 
-                        ? "bg-white text-black shadow-[0_8px_20px_rgba(255,255,255,0.18)]" 
-                        : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
-                    }`}
-                    title="3D Universe"
-                  >
-                    <Compass className="w-4 h-4" />
-                    {activeTab === "3d" && (
-                      <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-5 rounded-full bg-[var(--glow-text)] shadow-[0_0_10px_var(--glow-color)]" />
-                    )}
-                  </button>
-                  <button
-                    onClick={() => handleTabChange("grid")}
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer relative ${
-                      activeTab === "grid" 
-                        ? "bg-white text-black shadow-[0_8px_20px_rgba(255,255,255,0.18)]" 
-                        : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
-                    }`}
-                    title="Bento Grid"
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                    {activeTab === "grid" && (
-                      <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-5 rounded-full bg-[var(--glow-text)] shadow-[0_0_10px_var(--glow-color)]" />
-                    )}
-                  </button>
-                  <button
-                    onClick={() => handleTabChange("list")}
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer relative ${
-                      activeTab === "list" 
-                        ? "bg-white text-black shadow-[0_8px_20px_rgba(255,255,255,0.18)]" 
-                        : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
-                    }`}
-                    title="Ledger List"
-                  >
-                    <AlignLeft className="w-4 h-4" />
-                    {activeTab === "list" && (
-                      <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-5 rounded-full bg-[var(--glow-text)] shadow-[0_0_10px_var(--glow-color)]" />
-                    )}
-                  </button>
-                  <button
-                    onClick={() => handleTabChange("guideline")}
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer relative ${
-                      activeTab === "guideline" 
-                        ? "bg-white text-black shadow-[0_8px_20px_rgba(255,255,255,0.18)]" 
-                        : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
-                    }`}
-                    title="Guidelines"
-                  >
-                    <Feather className="w-4 h-4" />
-                    {activeTab === "guideline" && (
-                      <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-5 rounded-full bg-[var(--glow-text)] shadow-[0_0_10px_var(--glow-color)]" />
-                    )}
-                  </button>
-                  <button
-                    onClick={() => handleTabChange("authors")}
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer relative ${
-                      activeTab === "authors" 
-                        ? "bg-white text-black shadow-[0_8px_20px_rgba(255,255,255,0.18)]" 
-                        : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
-                    }`}
-                    title="About Us"
-                  >
-                    <Users className="w-4 h-4" />
-                    {activeTab === "authors" && (
-                      <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-5 rounded-full bg-[var(--glow-text)] shadow-[0_0_10px_var(--glow-color)]" />
-                    )}
-                  </button>
-                  <button
-                    onClick={() => handleTabChange("saved")}
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer relative ${
-                      activeTab === "saved" 
-                        ? "bg-white text-black shadow-[0_8px_20px_rgba(255,255,255,0.18)]" 
-                        : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
-                    }`}
-                    title="Saved"
-                  >
-                    <Bookmark className="w-4 h-4" />
-                    {activeTab === "saved" && (
-                      <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-5 rounded-full bg-[var(--glow-text)] shadow-[0_0_10px_var(--glow-color)]" />
-                    )}
-                    {savedSlugs.length > 0 && (
-                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--glow-text)] text-[9px] font-bold text-black font-mono shadow-[0_0_8px_var(--glow-color)]">
-                        {savedSlugs.length}
+function LatestStories({
+  stories,
+  loading,
+  query,
+  category,
+  onQuery,
+  onCategory,
+  onOpen,
+}: {
+  stories: Story[];
+  loading: boolean;
+  query: string;
+  category: string;
+  onQuery: (value: string) => void;
+  onCategory: (value: string) => void;
+  onOpen: (story: Story) => void;
+}) {
+  const [visible, setVisible] = useState(30);
+
+  const categories = useMemo(() => topCategories(stories, 9), [stories]);
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return stories.filter((story) => {
+      const matchesCategory = category === "All" || story.categories.includes(category);
+      const matchesQuery =
+        !needle ||
+        story.title.toLowerCase().includes(needle) ||
+        story.author.toLowerCase().includes(needle) ||
+        stripHtml(story.description).toLowerCase().includes(needle);
+      return matchesCategory && matchesQuery;
+    });
+  }, [stories, category, query]);
+
+  useEffect(() => {
+    setVisible(30);
+  }, [category, query]);
+
+  return (
+    <section id="latest" className="relative mx-auto max-w-7xl scroll-mt-24 px-4 py-20 sm:px-8 sm:py-24">
+      <Reveal className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.24em] text-[#c8ff4d]">
+            <Feather className="h-3 w-3" /> The latest
+          </div>
+          <h2 className="mt-4 max-w-2xl font-display text-4xl font-black tracking-[-0.03em] text-white sm:text-6xl">
+            Fresh ink, sorted by newest.
+          </h2>
+          <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/45">
+            Every story below was published in The Ink Home. Open one for the full reading experience, or jump
+            to the original on Medium.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 font-mono text-[9px] uppercase tracking-[0.16em] text-white/30">
+          <span className={`h-1.5 w-1.5 rounded-full ${loading ? "animate-pulse bg-white/50" : "bg-[#c8ff4d]"}`} />
+          {loading ? "Syncing…" : `${filtered.length} stories`}
+        </div>
+      </Reveal>
+
+      <Reveal delay={0.05} className="mt-10">
+        <div className="flex flex-col gap-4 border-y border-white/10 py-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap gap-1.5">
+            {["All", ...categories].map((tag) => {
+              const active = category === tag;
+              return (
+                <button
+                  key={tag}
+                  onClick={() => onCategory(tag)}
+                  className={`rounded-full border px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.14em] transition-colors ${
+                    active
+                      ? "border-[#c8ff4d] bg-[#c8ff4d] text-black"
+                      : "border-white/10 text-white/45 hover:border-white/30 hover:text-white"
+                  }`}
+                >
+                  {tag}
+                </button>
+              );
+            })}
+          </div>
+          <label className="flex w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.02] px-4 py-2.5 focus-within:border-white/30 lg:w-72">
+            <Search className="h-3.5 w-3.5 shrink-0 text-white/30" />
+            <input
+              value={query}
+              onChange={(event) => onQuery(event.target.value)}
+              placeholder="Search stories or writers"
+              className="w-full bg-transparent text-[12px] text-white placeholder:text-white/25 focus:outline-none"
+            />
+            {query && (
+              <button
+                onClick={() => onQuery("")}
+                className="font-mono text-[9px] uppercase tracking-[0.1em] text-white/40 hover:text-white"
+              >
+                Clear
+              </button>
+            )}
+          </label>
+        </div>
+      </Reveal>
+
+      {filtered.length === 0 ? (
+        <div className="mt-12 flex flex-col items-center gap-4 rounded-2xl border border-dashed border-white/15 py-16 text-center">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">No stories match that search</p>
+          <button
+            onClick={() => {
+              onQuery("");
+              onCategory("All");
+            }}
+            className="rounded-full border border-white/15 px-4 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-white/60 hover:text-white"
+          >
+            Reset filters
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.slice(0, visible).map((story, index) => (
+              <Reveal key={story.slug} delay={Math.min((index % 3) * 0.05, 0.2)} className="h-full">
+                <StoryCard story={story} onOpen={onOpen} />
+              </Reveal>
+            ))}
+          </div>
+
+          <div className="mt-10 flex flex-col items-center gap-3">
+            <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/30">
+              Showing {Math.min(visible, filtered.length)} of {filtered.length}
+            </span>
+            {visible < filtered.length && (
+              <button
+                onClick={() => setVisible((count) => count + 12)}
+                className="group flex items-center gap-2 rounded-full border border-white/15 px-6 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-white/70 transition-colors hover:border-white/40 hover:text-white"
+              >
+                Load more stories
+                <ArrowDownRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:translate-y-0.5" />
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function EditorsSection({ editors, stories }: { editors: Person[]; stories: Story[] }) {
+  return (
+    <section id="editors" className="relative scroll-mt-24 border-y border-white/10 bg-[#0a0b0d]">
+      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-8 sm:py-24">
+        <Reveal className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.24em] text-[#c8ff4d]">
+              <PenLine className="h-3 w-3" /> The editors
+            </div>
+            <h2 className="mt-4 font-display text-4xl font-black tracking-[-0.03em] text-white sm:text-6xl">
+              The people keeping the ink wet.
+            </h2>
+          </div>
+          <p className="max-w-sm text-sm leading-relaxed text-white/45">
+            Curating every dispatch, shaping the publication's voice, and making sure the good sentences survive
+            the edit.
+          </p>
+        </Reveal>
+
+        <div className="mt-10 grid gap-4 md:grid-cols-2">
+          {editors.map((editor, index) => {
+            const count = stories.filter((story) => story.author === editor.name).length;
+            return (
+              <Reveal key={editor.name} delay={index * 0.08}>
+                <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c0f] p-6 transition-colors hover:border-white/25 sm:p-8">
+                  <div
+                    className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-50"
+                    style={{ backgroundColor: index === 0 ? "rgba(200,255,77,0.35)" : "rgba(167,139,250,0.35)" }}
+                  />
+                  <div className="relative flex items-start justify-between">
+                    <span className="font-mono text-[10px] tracking-[0.18em] text-white/25">
+                      0{index + 1}
+                    </span>
+                    <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-white/30">
+                      {count} {count === 1 ? "story" : "stories"}
+                    </span>
+                  </div>
+
+                  <div className="relative mt-6 flex items-center gap-4">
+                    <AuthorAvatar
+                      name={editor.name}
+                      src={editor.avatar}
+                      className="h-16 w-16 rounded-full text-[16px] sm:h-20 sm:w-20"
+                    />
+                    <div className="min-w-0">
+                      <h3 className="font-display text-2xl font-bold tracking-tight text-white">{editor.name}</h3>
+                      <p className="mt-0.5 text-[11px] leading-snug text-[#c8ff4d]">{editor.role}</p>
+                      {typeof editor.followers === "number" && (
+                        <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.14em] text-white/30">
+                          {editor.followers.toLocaleString()} followers on Medium
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {editor.bio && (
+                    <p className="relative mt-5 text-[13px] leading-relaxed text-white/45">{editor.bio}</p>
+                  )}
+
+                  <div className="relative mt-auto flex items-center justify-between border-t border-white/10 pt-4">
+                    <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-white/30">
+                      Editorial desk
+                    </span>
+                    {editor.mediumUrl ? (
+                      <a
+                        href={editor.mediumUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.16em] text-white/55 transition-colors hover:text-[#c8ff4d]"
+                      >
+                        Medium profile <ArrowUpRight className="h-3 w-3" />
+                      </a>
+                    ) : (
+                      <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-white/25">
+                        The Ink Home
                       </span>
                     )}
-                  </button>
-                </nav>
-              </div>
-
-              <div className="flex flex-col items-center gap-1 w-full">
-                <div className="w-8 h-px bg-white/10 my-1" />
-                <a
-                  href="https://medium.com/the-ink-home"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.06] transition-all"
-                  title="Medium"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              </div>
-            </header>
-
-             {/* Skip to content for accessibility */}
-             <a href="#main-content" className="skip-link">Skip to content</a>
-
-             {/* Mobile hamburger */}
-             <button
-               onClick={() => {
-                 const sheet = document.getElementById('mobile-nav-sheet');
-                 const overlay = document.getElementById('mobile-nav-overlay');
-                 sheet?.classList.toggle('translate-y-full');
-                 overlay?.classList.toggle('opacity-0');
-                 overlay?.classList.toggle('pointer-events-none');
-               }}
-               className="md:hidden fixed top-4 left-4 z-40 w-11 h-11 rounded-xl bg-black/70 border border-white/10 backdrop-blur-xl flex items-center justify-center text-slate-200"
-               aria-label="Open menu"
-               id="mobile-hamburger-btn"
-             >
-               <Menu className="w-5 h-5" />
-             </button>
-
-             {/* Mobile nav overlay */}
-             <div
-               id="mobile-nav-overlay"
-               onClick={() => {
-                 document.getElementById('mobile-nav-sheet')?.classList.add('translate-y-full');
-                 document.getElementById('mobile-nav-overlay')?.classList.add('opacity-0', 'pointer-events-none');
-               }}
-               className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300"
-             />
-
-             {/* Mobile nav sheet */}
-             <div
-               id="mobile-nav-sheet"
-               className="md:hidden fixed inset-x-0 bottom-0 translate-y-full z-50 transition-transform duration-300 ease-out"
-             >
-               <div className="mx-4 mb-4 rounded-2xl border border-white/10 bg-black/90 backdrop-blur-xl p-4 shadow-2xl">
-                 <div className="grid grid-cols-3 gap-3">
-                   <button
-                     onClick={() => { handleTabChange("3d"); document.getElementById('mobile-nav-sheet')?.classList.add('translate-y-full'); document.getElementById('mobile-nav-overlay')?.classList.add('opacity-0', 'pointer-events-none'); }}
-                     className="flex flex-col items-center gap-2 p-3 rounded-xl border border-white/5 bg-white/[0.02] text-slate-200"
-                   >
-                     <Compass className="w-5 h-5 text-[var(--atmo-text)]" />
-                     <span className="text-[10px] font-mono uppercase tracking-wider">3D</span>
-                   </button>
-                   <button
-                     onClick={() => { handleTabChange("grid"); document.getElementById('mobile-nav-sheet')?.classList.add('translate-y-full'); document.getElementById('mobile-nav-overlay')?.classList.add('opacity-0', 'pointer-events-none'); }}
-                     className="flex flex-col items-center gap-2 p-3 rounded-xl border border-white/5 bg-white/[0.02] text-slate-200"
-                   >
-                     <LayoutGrid className="w-5 h-5 text-[var(--atmo-text)]" />
-                     <span className="text-[10px] font-mono uppercase tracking-wider">Grid</span>
-                   </button>
-                   <button
-                     onClick={() => { handleTabChange("list"); document.getElementById('mobile-nav-sheet')?.classList.add('translate-y-full'); document.getElementById('mobile-nav-overlay')?.classList.add('opacity-0', 'pointer-events-none'); }}
-                     className="flex flex-col items-center gap-2 p-3 rounded-xl border border-white/5 bg-white/[0.02] text-slate-200"
-                   >
-                     <AlignLeft className="w-5 h-5 text-[var(--atmo-text)]" />
-                     <span className="text-[10px] font-mono uppercase tracking-wider">List</span>
-                   </button>
-                   <button
-                     onClick={() => { handleTabChange("guideline"); document.getElementById('mobile-nav-sheet')?.classList.add('translate-y-full'); document.getElementById('mobile-nav-overlay')?.classList.add('opacity-0', 'pointer-events-none'); }}
-                     className="flex flex-col items-center gap-2 p-3 rounded-xl border border-white/5 bg-white/[0.02] text-slate-200"
-                   >
-                     <Feather className="w-5 h-5 text-[var(--atmo-text)]" />
-                     <span className="text-[10px] font-mono uppercase tracking-wider">Write</span>
-                   </button>
-                   <button
-                     onClick={() => { handleTabChange("authors"); document.getElementById('mobile-nav-sheet')?.classList.add('translate-y-full'); document.getElementById('mobile-nav-overlay')?.classList.add('opacity-0', 'pointer-events-none'); }}
-                     className="flex flex-col items-center gap-2 p-3 rounded-xl border border-white/5 bg-white/[0.02] text-slate-200"
-                   >
-                     <Users className="w-5 h-5 text-[var(--atmo-text)]" />
-                     <span className="text-[10px] font-mono uppercase tracking-wider">About</span>
-                   </button>
-                   <button
-                     onClick={() => { handleTabChange("saved"); document.getElementById('mobile-nav-sheet')?.classList.add('translate-y-full'); document.getElementById('mobile-nav-overlay')?.classList.add('opacity-0', 'pointer-events-none'); }}
-                     className="flex flex-col items-center gap-2 p-3 rounded-xl border border-white/5 bg-white/[0.02] text-slate-200 relative"
-                   >
-                     <Bookmark className="w-5 h-5 text-[var(--atmo-text)]" />
-                     <span className="text-[10px] font-mono uppercase tracking-wider">Saved</span>
-                     {savedSlugs.length > 0 && (
-                       <span className="absolute top-2 right-2 flex h-3 w-3 items-center justify-center rounded-full bg-[var(--atmo-text)] text-[8px] font-bold text-black font-mono">
-                         {savedSlugs.length}
-                       </span>
-                     )}
-                   </button>
-                 </div>
-               </div>
-             </div>
-
-            {/* Core View Dashboard Body Container */}
-            <main className="flex-1 py-8 sm:py-12 md:pl-20 px-4 sm:px-6">
-              
-              {/* Fetching state feedback loops */}
-              {loading ? (
-                <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-6">
-                  <div className="w-full max-w-4xl space-y-4 px-4">
-                    <div className="flex items-center gap-3">
-                      <div className="skeleton h-4 w-32 rounded-full" />
-                      <div className="skeleton h-4 w-24 rounded-full" />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {[0,1,2,3,4,5].map((i) => (
-                        <div key={i} className="space-y-3 p-4 border border-white/5 bg-black/20">
-                          <div className="skeleton h-32 w-full rounded-none" />
-                          <div className="space-y-2">
-                            <div className="skeleton h-4 w-3/4 rounded-none" />
-                            <div className="skeleton h-3 w-1/2 rounded-none" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
                   </div>
-                  <div className="cinematic-progress w-full max-w-4xl" />
                 </div>
-              ) : error && stories.length === 0 ? (
-                <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3 p-8 border border-red-500/20 bg-red-950/10 rounded-none max-w-lg mx-auto">
-                  <p className="text-sm font-semibold text-red-400 font-sans">Satellite link offline.</p>
-                  <p className="text-xs text-slate-400 text-center leading-relaxed">
-                    {error}. Reconnecting to fallback network coordinates.
-                  </p>
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="mt-2 px-6 py-2.5 font-mono text-[10px] uppercase tracking-widest bg-[var(--atmo-text)] text-black font-extrabold"
-                  >
-                    Retry Portal Sync
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-16">
-                  
-                  {/* Dynamic Heading per tab */}
-                  <div className="text-center md:pb-6 space-y-2">
-                    {activeTab === "3d" && (
-                      <>
-                        <h2 className="font-sans font-bold text-3xl md:text-5xl text-white tracking-tight uppercase italic">The Volumetric <span className="text-[var(--atmo-text)]">Universe</span></h2>
-                        <p className="text-xs text-slate-400 font-mono tracking-[0.25em] uppercase">ROUTING AND ALIGNING THE COGNITIVE MATRIX IN IMMERSIVE SPACE</p>
-                      </>
-                    )}
-                    {activeTab === "grid" && (
-                      <>
-                        <h2 className="font-sans font-bold text-3xl md:text-5xl text-white tracking-tight uppercase italic">The Bento <span className="text-[var(--atmo-text)]">Archive</span></h2>
-                        <p className="text-xs text-slate-400 font-mono tracking-[0.25em] uppercase">HIGH CAPACITY CELLS STRUCTURED FOR SPEED SENSORY CARDS</p>
-                      </>
-                    )}
-                    {activeTab === "list" && (
-                      <>
-                        <h2 className="font-sans font-bold text-3xl md:text-5xl text-white tracking-tight uppercase italic">The Narrative <span className="text-[var(--atmo-text)]">Ledger</span></h2>
-                        <p className="text-xs text-slate-400 font-mono tracking-[0.25em] uppercase">MINIMALIST CHRONOLOGICAL INDEX SHIFTED FOR METADATA SCANNING</p>
-                      </>
-                    )}
-                    {activeTab === "guideline" && (
-                      <>
-                        <h2 className="font-sans font-bold text-3xl md:text-5xl text-white tracking-tight uppercase italic">Submission <span className="text-[var(--atmo-text)]">Guidelines</span></h2>
-                        <p className="text-xs text-slate-400 font-mono tracking-[0.25em] uppercase">YOUR VOICE MATTERS HERE. READ BEFORE YOU SUBMIT YOUR STORIES</p>
-                      </>
-                    )}
-                    {activeTab === "authors" && (
-                      <>
-                        {/* Title inside the authors component itself */}
-                      </>
-                    )}
-                    {activeTab === "saved" && (
-                      <>
-                        <h2 className="font-sans font-bold text-3xl md:text-5xl text-white tracking-tight uppercase italic">The Saved <span className="text-[var(--atmo-text)]">Archive</span></h2>
-                        <p className="text-xs text-slate-400 font-mono tracking-[0.25em] uppercase">YOUR PERSONALLY CURATED COGNITIVE MATRIX COLLECTED FROM THE SPATIAL NODE</p>
-                      </>
-                    )}
-                  </div>
+              </Reveal>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
 
-                  {/* Render Tab Views with state transitions */}
-                  <div className="min-h-[55vh]" id="tab-viewport">
-                    <AnimatePresence mode="wait">
-                      {activeTab === "3d" && (
-                        <motion.div
-                          key="nav-3d"
-                          initial={{ opacity: 0, scale: 0.98 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.4 }}
-                        >
-                          <Suspense fallback={
-                            <div className="flex flex-col items-center justify-center min-h-[40vh] space-y-3">
-                              <div className="w-8 h-8 border border-[var(--atmo-text)] border-t-transparent rounded-full animate-spin" />
-                              <span className="text-[10px] font-mono tracking-wider text-slate-500 uppercase">Constructing 3D Space...</span>
-                            </div>
-                          }>
-                            <Carousel3D 
-                              stories={stories} 
-                              onSelectStory={handleSelectStory} 
-                              likedSlugs={likedSlugs}
-                              savedSlugs={savedSlugs}
-                              onToggleLike={handleToggleLike}
-                              onToggleSave={handleToggleSave}
-                            />
-                          </Suspense>
-                        </motion.div>
-                      )}
-                      
-                       {activeTab === "grid" && (
-                         <motion.div
-                           key="nav-grid"
-                           initial={{ opacity: 0 }}
-                           animate={{ opacity: 1 }}
-                           exit={{ opacity: 0 }}
-                           transition={{ duration: 0.4 }}
-                         >
-                           <Suspense fallback={
-                             <div className="flex flex-col items-center justify-center min-h-[40vh] space-y-3">
-                               <div className="w-8 h-8 border border-[var(--atmo-text)] border-t-transparent rounded-full animate-spin" />
-                               <span className="text-[10px] font-mono tracking-wider text-slate-500 uppercase">Loading Grid...</span>
-                             </div>
-                           }>
-                             <StoryGrid 
-                               stories={stories} 
-                               onSelectStory={handleSelectStory} 
-                               likedSlugs={likedSlugs}
-                               savedSlugs={savedSlugs}
-                               onToggleLike={handleToggleLike}
-                               onToggleSave={handleToggleSave}
-                             />
-                           </Suspense>
-                         </motion.div>
-                       )}
+function ContributorsSection({
+  editors,
+  writers,
+  stories,
+  onSelect,
+}: {
+  editors: Person[];
+  writers: Person[];
+  stories: Story[];
+  onSelect: (name: string) => void;
+}) {
+  const [showAll, setShowAll] = useState(false);
 
-                       {activeTab === "list" && (
-                         <motion.div
-                           key="nav-list"
-                           initial={{ opacity: 0 }}
-                           animate={{ opacity: 1 }}
-                           exit={{ opacity: 0 }}
-                           transition={{ duration: 0.4 }}
-                         >
-                           <Suspense fallback={
-                             <div className="flex flex-col items-center justify-center min-h-[40vh] space-y-3">
-                               <div className="w-8 h-8 border border-[var(--atmo-text)] border-t-transparent rounded-full animate-spin" />
-                               <span className="text-[10px] font-mono tracking-wider text-slate-500 uppercase">Loading List...</span>
-                             </div>
-                           }>
-                             <StoryList 
-                               stories={stories} 
-                               onSelectStory={handleSelectStory} 
-                               likedSlugs={likedSlugs}
-                               savedSlugs={savedSlugs}
-                               onToggleLike={handleToggleLike}
-                               onToggleSave={handleToggleSave}
-                             />
-                           </Suspense>
-                         </motion.div>
-                       )}
+  const contributors = useMemo(() => {
+    const map = new Map<string, Person & { count: number }>();
+    writers.forEach((writer) => {
+      map.set(writer.name.toLowerCase(), { ...writer, count: 0 });
+    });
 
-                       {activeTab === "guideline" && (
-                         <motion.div
-                           key="nav-guideline"
-                           initial={{ opacity: 0 }}
-                           animate={{ opacity: 1 }}
-                           exit={{ opacity: 0 }}
-                           transition={{ duration: 0.4 }}
-                         >
-                           <Suspense fallback={
-                             <div className="flex flex-col items-center justify-center min-h-[40vh] space-y-3">
-                               <div className="w-8 h-8 border border-[var(--atmo-text)] border-t-transparent rounded-full animate-spin" />
-                               <span className="text-[10px] font-mono tracking-wider text-slate-500 uppercase">Loading Guidelines...</span>
-                             </div>
-                           }>
-                             <SubmissionGuideline />
-                           </Suspense>
-                         </motion.div>
-                       )}
+    stories.forEach((story) => {
+      const key = story.author.toLowerCase();
+      const existing = map.get(key);
+      if (existing) {
+        existing.count += 1;
+        if (!existing.avatar && story.avatar) existing.avatar = story.avatar;
+        if (!existing.role && story.role) existing.role = story.role;
+      } else {
+        map.set(key, {
+          name: story.author,
+          role: story.role || "Contributor",
+          avatar: story.avatar,
+          count: 1,
+        });
+      }
+    });
 
-                       {activeTab === "authors" && (
-                         <motion.div
-                           key="nav-authors"
-                           initial={{ opacity: 0 }}
-                           animate={{ opacity: 1 }}
-                           exit={{ opacity: 0 }}
-                           transition={{ duration: 0.4 }}
-                         >
-                           <Suspense fallback={
-                             <div className="flex flex-col items-center justify-center min-h-[40vh] space-y-3">
-                               <div className="w-8 h-8 border border-[var(--atmo-text)] border-t-transparent rounded-full animate-spin" />
-                               <span className="text-[10px] font-mono tracking-wider text-slate-500 uppercase">Loading Authors...</span>
-                             </div>
-                           }>
-                             <AuthorsSection stories={stories} onSelectStory={handleSelectStory} editors={editors} writers={writers} aboutInfo={aboutInfo} />
-                           </Suspense>
-                         </motion.div>
-                       )}
+    const editorNames = new Set(editors.map((editor) => editor.name.toLowerCase()));
+    return Array.from(map.values())
+      .filter((person) => !editorNames.has(person.name.toLowerCase()))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  }, [editors, writers, stories]);
 
-                      {activeTab === "saved" && (
-                        <motion.div
-                          key="nav-saved"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.4 }}
-                        >
-                           {stories.filter(s => savedSlugs.includes(s.slug)).length === 0 ? (
-                             <div className="flex flex-col items-center justify-center min-h-[300px] border border-white/10 bg-[#0c0c0c]/80 p-8 text-center max-w-xl mx-auto space-y-4">
-                               <Bookmark className="w-8 h-8 text-slate-600" />
-                               <p className="font-mono text-xs uppercase tracking-widest text-slate-400">Your Archive is Empty</p>
-                               <p className="text-xs text-slate-500 leading-relaxed font-light">
-                                 Connect to the 3D Universe or Bento Grid, find stories that challenge your cognitive horizons, and click their save trigger to register them here.
-                               </p>
-                               <button
-                                 onClick={() => handleTabChange("3d")}
-                                 className="px-5 py-2 border border-[var(--atmo-border)] text-[var(--atmo-text)] hover:bg-[var(--atmo-text)] hover:text-black font-mono text-[10px] uppercase tracking-widest transition-colors font-bold cursor-pointer"
-                               >
-                                 Explore Cosmos
-                               </button>
-                             </div>
-                           ) : (
-                             <Suspense fallback={
-                               <div className="flex flex-col items-center justify-center min-h-[40vh] space-y-3">
-                                 <div className="w-8 h-8 border border-[var(--atmo-text)] border-t-transparent rounded-full animate-spin" />
-                                 <span className="text-[10px] font-mono tracking-wider text-slate-500 uppercase">Loading...</span>
-                               </div>
-                             }>
-                               <StoryGrid 
-                                 stories={stories.filter(s => savedSlugs.includes(s.slug))} 
-                                 onSelectStory={handleSelectStory}
-                                 likedSlugs={likedSlugs}
-                                 savedSlugs={savedSlugs}
-                                 onToggleLike={handleToggleLike}
-                                 onToggleSave={handleToggleSave}
-                               />
-                             </Suspense>
-                           )}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+  const visible = showAll ? contributors : contributors.slice(0, 12);
 
-                  {/* Interactive Dynamic Footnote - Show stats in visual dashboard footer */}
-                  {activeTab !== "authors" && activeTab !== "guideline" && (
-                    <div className="w-full max-w-6xl mx-auto border-t border-white/10 pt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                      {/* Section 1 */}
-                      <div className="space-y-2 border-l-2 border-[var(--atmo-border)] pl-4">
-                        <h4 className="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--atmo-text)]">TELEMETRY SOURCES</h4>
-                        <p className="text-xs text-slate-400 font-light">
-                          Stories ingested automatically from `https://medium.com/the-ink-home` via background parsing array.
-                        </p>
-                      </div>
-                      
-                      {/* Section 2 */}
-                      <div className="space-y-2 border-l-2 border-slate-700 pl-4">
-                        <h4 className="text-[11px] font-mono uppercase tracking-[0.2em] text-white">NODE RECEPTOR</h4>
-                        <p className="text-xs text-slate-400 flex items-center gap-1.5 font-light">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--atmo-text)]" />
-                          Online / Synced dynamically
-                        </p>
-                      </div>
+  return (
+    <section id="writers" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-20 sm:px-8 sm:py-24">
+      <Reveal className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.24em] text-[#c8ff4d]">
+            <Users className="h-3 w-3" /> The writers
+          </div>
+          <h2 className="mt-4 font-display text-4xl font-black tracking-[-0.03em] text-white sm:text-6xl">
+            Every voice in the room.
+          </h2>
+          <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/45">
+            Essayists, researchers, engineers and storytellers. Select a writer to see their work in the
+            publication.
+          </p>
+        </div>
+        <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.18em] text-white/30">
+          {contributors.length} contributors
+        </span>
+      </Reveal>
 
-                      {/* Section 3 */}
-                      <div className="space-y-2 border-l-2 border-slate-700 pl-4">
-                        <h4 className="text-[11px] font-mono uppercase tracking-[0.2em] text-white">CATALOG STATUS</h4>
-                        <p className="text-xs text-slate-400 font-light">
-                          {stories.length} interactive stories floating in coordinates. {new Set(stories.map(s => s.author)).size} accredited editors.
-                        </p>
-                      </div>
+      <div className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {visible.map((person, index) => (
+          <Reveal key={person.name} delay={Math.min((index % 4) * 0.04, 0.16)}>
+            <button
+              onClick={() => {
+                if (person.count > 0) onSelect(person.name);
+                else if (person.mediumUrl) window.open(person.mediumUrl, "_blank", "noopener,noreferrer");
+              }}
+              className="group flex h-full w-full items-start gap-3 rounded-xl border border-white/10 bg-[#0b0c0f] p-4 text-left transition-colors hover:border-white/25"
+            >
+              <AuthorAvatar
+                name={person.name}
+                src={person.avatar}
+                className="h-11 w-11 rounded-full text-[11px]"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="flex items-start justify-between gap-2">
+                  <span className="font-display text-[14px] font-semibold leading-snug text-white line-clamp-1">
+                    {person.name}
+                  </span>
+                  <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/20 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white/70" />
+                </span>
+                <span className="mt-0.5 block truncate text-[10px] text-white/35">{person.role}</span>
+                {person.bio && (
+                  <span className="mt-2 line-clamp-2 block text-[11px] leading-relaxed text-white/30">
+                    {person.bio}
+                  </span>
+                )}
+                <span className="mt-2 flex items-center gap-1.5 font-mono text-[8px] uppercase tracking-[0.14em] text-white/30">
+                  <span className={`h-1 w-1 rounded-full ${person.count ? "bg-[#c8ff4d]" : "bg-white/20"}`} />
+                  {person.count > 0
+                    ? `${person.count} ${person.count === 1 ? "story" : "stories"}`
+                    : person.mediumUrl
+                      ? "Read on Medium"
+                      : "Contributor"}
+                </span>
+              </span>
+            </button>
+          </Reveal>
+        ))}
+      </div>
 
-                      {/* Section 4 */}
-                      <div className="space-y-2 border-l-2 border-slate-700 pl-4">
-                        <h4 className="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--atmo-text)]">WebGL MATRIX</h4>
-                        <p className="text-xs text-slate-400 font-light">
-                          Designed with custom constellations for spatial immersion. Read full layouts via Medium native links.
-                        </p>
-                      </div>
-                    </div>
-                  )}
+      {contributors.length > 12 && (
+        <div className="mt-8 flex justify-center">
+          <button
+            onClick={() => setShowAll((value) => !value)}
+            className="flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 font-mono text-[9px] uppercase tracking-[0.16em] text-white/55 transition-colors hover:border-white/35 hover:text-white"
+          >
+            {showAll ? "Show fewer writers" : `Show all ${contributors.length} writers`}
+            <ArrowRight className={`h-3 w-3 transition-transform ${showAll ? "-rotate-90" : ""}`} />
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
 
-                  {/* Dynamic full-width Editorial Board view below standard carousel/grid/list layouts to enrich experience */}
-                  {activeTab !== "authors" && activeTab !== "guideline" && (
-                    <div className="pt-8 pb-12 border-t border-white/10">
-                      <AuthorsSection stories={stories} onSelectStory={handleSelectStory} editors={editors} writers={writers} aboutInfo={aboutInfo} />
-                    </div>
-                  )}
+function AboutSection({
+  about,
+  storyCount,
+  contributorCount,
+  onNavigate,
+}: {
+  about: AboutData;
+  storyCount: number;
+  contributorCount: number;
+  onNavigate: (path: string) => void;
+}) {
+  return (
+    <section id="about" className="relative scroll-mt-24 overflow-hidden border-y border-white/10 bg-[#0a0b0d]">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-70"
+        style={{
+          background:
+            "radial-gradient(ellipse 50% 70% at 90% 0%, rgba(200,255,77,0.10), transparent 60%), radial-gradient(ellipse 40% 60% at 0% 100%, rgba(167,139,250,0.10), transparent 60%)",
+        }}
+      />
+      <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-8 sm:py-24 lg:grid-cols-[1.1fr_0.9fr]">
+        <Reveal>
+          <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.24em] text-[#c8ff4d]">
+            <BookOpen className="h-3 w-3" /> About the publication
+          </div>
+          <h2 className="mt-4 max-w-2xl font-display text-4xl font-black leading-[0.98] tracking-[-0.03em] text-white sm:text-6xl">
+            A home for writing that takes its time.
+          </h2>
+          <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-white/50">
+            {about.description}
+          </p>
 
-                </div>
-              )}
-
-            </main>
-
-            {/* General Site Footer */}
-            <footer className="w-full border-t border-white/10 bg-[#070707] pt-12 sm:pt-16 pb-24 sm:pb-16 md:pb-16 flex flex-col items-center justify-center space-y-3 text-center text-[10px] text-slate-500 font-mono uppercase tracking-[0.2em] mt-8 sm:mt-12">
-              <Logo size={48} iconOnly className="opacity-80 hover:opacity-100 transition-opacity" />
-              <div className="space-y-1">
-                <span className="block text-slate-400">The Ink Home © 2026</span>
-                <span>Visualizing dynamic literature in multi-dimensional cosmos</span>
-              </div>
+          <blockquote className="mt-8 border-l-2 border-[#c8ff4d] pl-5">
+            <Quote className="h-4 w-4 text-[#c8ff4d]" />
+            <p className="mt-2 max-w-lg font-display text-xl font-medium italic leading-snug text-white/80 sm:text-2xl">
+              Good writing is a form of hospitality. We keep the light on, the chair warm, and the page open.
+            </p>
+            <footer className="mt-3 font-mono text-[9px] uppercase tracking-[0.18em] text-white/30">
+              The Ink Home editorial desk
             </footer>
+          </blockquote>
 
+          <div className="mt-8 flex flex-wrap gap-3">
+            <a
+              href="https://medium.com/the-ink-home"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center gap-2 rounded-full bg-white px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-[#c8ff4d]"
+            >
+              Visit us on Medium
+              <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+            </a>
+            <button
+              onClick={() => onNavigate("/#latest")}
+              className="flex items-center gap-2 rounded-full border border-white/15 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-white/70 transition-colors hover:border-white/40 hover:text-white"
+            >
+              Browse the archive
+            </button>
+          </div>
+        </Reveal>
+
+        <Reveal delay={0.1}>
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10">
+            {[
+              [String(storyCount), "Stories on site"],
+              [String(contributorCount), "Contributors"],
+              ["10 min", "Refresh cadence"],
+              ["2026", "Vol. 07"],
+            ].map(([value, label]) => (
+              <div key={label} className="bg-[#0a0b0d] px-5 py-6 sm:px-6 sm:py-7">
+                <div className="font-display text-3xl font-bold text-white sm:text-4xl">{value}</div>
+                <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.16em] text-white/35">{label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-white/10 bg-[#0b0c0f] p-5">
+            <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.18em] text-white/35">
+              <Sparkles className="h-3 w-3 text-[#c8ff4d]" /> What we publish
+            </div>
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {[
+                "Essays",
+                "Technology",
+                "Culture",
+                "Creativity",
+                "Productivity",
+                "Relationships",
+                "Mental health",
+                "Personal stories",
+              ].map((topic) => (
+                <span
+                  key={topic}
+                  className="rounded-full border border-white/10 px-2.5 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-white/45"
+                >
+                  {topic}
+                </span>
+              ))}
+            </div>
+            <p className="mt-4 text-[12px] leading-relaxed text-white/35">
+              Have something honest to say? We read every submission. Write to us at{" "}
+              <a href="mailto:hello@theinkhome.com" className="text-white/60 hover:text-[#c8ff4d]">
+                hello@theinkhome.com
+              </a>
+              .
+            </p>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+function SubscribeSection({ onNavigate }: { onNavigate: (path: string) => void }) {
+  const [email, setEmail] = useState("");
+  const [subscribed, setSubscribed] = useState(false);
+
+  return (
+    <section id="subscribe" className="scroll-mt-24 px-4 py-20 sm:px-8 sm:py-24">
+      <Reveal className="mx-auto max-w-7xl">
+        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0b0c0f] px-6 py-14 sm:px-12 sm:py-20">
+          <div
+            className="pointer-events-none absolute inset-0 opacity-80"
+            style={{
+              background:
+                "radial-gradient(ellipse 60% 100% at 80% 0%, rgba(200,255,77,0.18), transparent 60%), radial-gradient(ellipse 50% 80% at 10% 100%, rgba(167,139,250,0.16), transparent 60%)",
+            }}
+          />
+          <div className="relative grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+            <div>
+              <span className="font-mono text-[9px] uppercase tracking-[0.24em] text-white/40">The Sunday dispatch</span>
+              <h2 className="mt-4 max-w-2xl font-display text-4xl font-black leading-[0.96] tracking-[-0.035em] text-white sm:text-6xl">
+                One letter. Every Sunday. No noise.
+              </h2>
+              <p className="mt-5 max-w-xl text-sm leading-relaxed text-white/50">
+                The week's best Ink Home stories, a note from the editors, and one idea worth carrying into
+                Monday.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => onNavigate("/#latest")}
+                  className="rounded-full border border-white/15 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-white/70 transition-colors hover:border-white/40 hover:text-white"
+                >
+                  Read this week's stories
+                </button>
+                <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-white/25">
+                  Free · Unsubscribe anytime
+                </span>
+              </div>
+            </div>
+
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (!email.trim()) return;
+                setSubscribed(true);
+                setEmail("");
+                window.setTimeout(() => setSubscribed(false), 2800);
+              }}
+              className="rounded-2xl border border-white/10 bg-black/30 p-5 backdrop-blur"
+            >
+              <label
+                htmlFor="dispatch-email"
+                className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/40"
+              >
+                Your email
+              </label>
+              <div className="mt-2 flex items-center gap-2 border-b border-white/15 pb-2 focus-within:border-white/40">
+                <Mail className="h-4 w-4 shrink-0 text-white/30" />
+                <input
+                  id="dispatch-email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="you@studio.com"
+                  className="w-full bg-transparent text-sm text-white placeholder:text-white/25 focus:outline-none"
+                />
+              </div>
+              <button
+                type="submit"
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#c8ff4d] px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-transform hover:-translate-y-0.5"
+              >
+                {subscribed ? (
+                  <>
+                    You're on the list <Check className="h-4 w-4" />
+                  </>
+                ) : (
+                  <>
+                    Join the dispatch <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+              <p className="mt-3 text-center font-mono text-[8px] uppercase tracking-[0.14em] text-white/25">
+                Sent from the editors, not a marketing bot
+              </p>
+            </form>
+          </div>
+        </div>
+      </Reveal>
+    </section>
+  );
+}
+
+function StoryNotFound({ loading, onNavigate }: { loading: boolean; onNavigate: (path: string) => void }) {
+  return (
+    <div className="flex min-h-[70vh] flex-col items-center justify-center px-4 pt-24 text-center">
+      {loading ? (
+        <>
+          <div className="h-6 w-6 animate-spin rounded-full border border-white/15 border-t-[#c8ff4d]" />
+          <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">
+            Pulling the story from Medium…
+          </p>
+        </>
+      ) : (
+        <>
+          <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#c8ff4d]">404 — Page not found</span>
+          <h1 className="mt-4 max-w-2xl font-display text-4xl font-black tracking-tight text-white sm:text-6xl">
+            This page has wandered off.
+          </h1>
+          <p className="mt-4 max-w-md text-sm leading-relaxed text-white/45">
+            The story may have moved, or the link is incomplete. The full archive is always waiting back home.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={() => onNavigate("/")}
+              className="rounded-full bg-white px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-black hover:bg-[#c8ff4d]"
+            >
+              Back to the publication
+            </button>
+            <a
+              href="https://medium.com/the-ink-home"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-full border border-white/15 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-white/70 hover:border-white/40 hover:text-white"
+            >
+              Search on Medium <ArrowUpRight className="h-4 w-4" />
+            </a>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function App() {
+  const [path, setPath] = useCurrentPath();
+  const [scrollTarget, setScrollTarget] = useState<string | null>(null);
+  const [stories, setStories] = useState<Story[]>(FALLBACK_STORIES);
+  const [about, setAbout] = useState<AboutData>(FALLBACK_ABOUT as AboutData);
+  const [loading, setLoading] = useState(true);
+  const [live, setLive] = useState(false);
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("All");
+  const [liked, setLiked] = useState<string[]>(() => readLiked("the-ink-home:liked"));
+  const [saved, setSaved] = useState<string[]>(() => readLiked("the-ink-home:saved"));
+
+  const navigate = useCallback(
+    (to: string) => {
+      const [rawPath, hash] = to.split("#");
+      const target = rawPath === "" ? "/" : rawPath;
+
+      if (window.location.pathname !== target) {
+        window.history.pushState(null, "", to);
+        setPath(target);
+      } else {
+        window.history.replaceState(null, "", to);
+      }
+
+      if (hash) {
+        setScrollTarget(hash);
+      } else {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    },
+    [setPath],
+  );
+
+  useEffect(() => {
+    if (!scrollTarget) return;
+    const timer = window.setTimeout(() => {
+      document.getElementById(scrollTarget)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setScrollTarget(null);
+    }, 140);
+    return () => window.clearTimeout(timer);
+  }, [scrollTarget, path]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [path]);
+
+  useEffect(() => {
+    localStorage.setItem("the-ink-home:liked", JSON.stringify(liked));
+  }, [liked]);
+
+  useEffect(() => {
+    localStorage.setItem("the-ink-home:saved", JSON.stringify(saved));
+  }, [saved]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    try {
+      const cachedAt = Number(localStorage.getItem(STORY_CACHE_TIME) || 0);
+      const raw = localStorage.getItem(STORY_CACHE_KEY);
+      if (raw && Date.now() - cachedAt < CACHE_TTL) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length >= 10) {
+          setStories(parsed.slice(0, 50));
+          setLive(true);
+          setLoading(false);
+        }
+      }
+    } catch {
+      /* ignore corrupt cache */
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 18000);
+
+    async function load() {
+      try {
+        const [storiesResponse, aboutResponse] = await Promise.all([
+          fetch("/api/stories", { signal: controller.signal, cache: "no-store" }),
+          fetch("/api/about", { signal: controller.signal }),
+        ]);
+
+        if (!storiesResponse.ok) throw new Error(`Stories request failed: ${storiesResponse.status}`);
+
+        const storyPayload = await storiesResponse.json();
+        const incoming: Story[] = Array.isArray(storyPayload?.stories) ? storyPayload.stories : [];
+
+        if (!cancelled && incoming.length >= 10) {
+          const trimmed = incoming.slice(0, 50);
+          setStories(trimmed);
+          setLive(true);
+          try {
+            localStorage.setItem(STORY_CACHE_KEY, JSON.stringify(trimmed));
+            localStorage.setItem(STORY_CACHE_TIME, String(Date.now()));
+          } catch {
+            /* storage full */
+          }
+        }
+
+        if (!cancelled && aboutResponse.ok) {
+          const aboutPayload = await aboutResponse.json();
+          if (aboutPayload?.editors?.length) {
+            setAbout({
+              description: aboutPayload.description || FALLBACK_ABOUT.description,
+              officialWebsite: aboutPayload.officialWebsite || FALLBACK_ABOUT.officialWebsite,
+              editors: aboutPayload.editors,
+              writers: aboutPayload.writers || [],
+            });
+          }
+        }
+      } catch {
+        /* keep fallback */
+      } finally {
+        window.clearTimeout(timer);
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  const topics = useMemo(() => {
+    const derived = topCategories(stories, 11);
+    const merged = [...derived];
+    DEFAULT_TOPICS.forEach((topic) => {
+      if (!merged.includes(topic)) merged.push(topic);
+    });
+    return merged.slice(0, 12);
+  }, [stories]);
+
+  const contributorCount = useMemo(() => {
+    const names = new Set<string>();
+    stories.forEach((story) => names.add(story.author.toLowerCase()));
+    about.writers.forEach((writer) => names.add(writer.name.toLowerCase()));
+    return names.size;
+  }, [stories, about.writers]);
+
+  const storySlug = path.startsWith("/story/") ? decodeURIComponent(path.replace("/story/", "")) : null;
+  const activeStory = storySlug ? stories.find((story) => story.slug === storySlug) : undefined;
+
+  useEffect(() => {
+    const description = document.querySelector('meta[name="description"]');
+    const pageTitles: Record<string, string> = {
+      "/": "The Ink Home — Where Words Feel at Home",
+      "/stories": "Stories | The Ink Home",
+      "/writers": "Writers | The Ink Home",
+      "/about": "About | The Ink Home",
+    };
+    const defaultDescription =
+      "An independent Medium publication of essays on technology, culture, creativity, relationships and the quiet parts of being human.";
+
+    if (activeStory) {
+      document.title = `${activeStory.title} | The Ink Home`;
+      description?.setAttribute(
+        "content",
+        activeStory.description || "A story from The Ink Home on Medium.",
+      );
+    } else if (pageTitles[path]) {
+      document.title = pageTitles[path];
+      description?.setAttribute("content", defaultDescription);
+    } else {
+      document.title = "The Ink Home — Where Words Feel at Home";
+      description?.setAttribute("content", defaultDescription);
+    }
+  }, [activeStory, path]);
+
+  const openStory = (story: Story) => navigate(`/story/${encodeURIComponent(story.slug)}`);
+
+  const selectContributor = (name: string) => {
+    setQuery(name);
+    setCategory("All");
+    navigate("/#latest");
+  };
+
+  const toggleLiked = (slug: string) => {
+    setLiked((current) => (current.includes(slug) ? current.filter((item) => item !== slug) : [...current, slug]));
+  };
+
+  const toggleSaved = (slug: string) => {
+    setSaved((current) => (current.includes(slug) ? current.filter((item) => item !== slug) : [...current, slug]));
+  };
+
+  return (
+    <div className="min-h-screen bg-[#08080a] text-white selection:bg-[#c8ff4d] selection:text-black">
+      <a href="#main" className="skip-link">
+        Skip to content
+      </a>
+      <SiteHeader
+        onNavigate={navigate}
+        onOpenStory={() => {
+          navigate("/#latest");
+        }}
+      />
+
+      <main id="main">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeStory ? activeStory.slug : path}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.28 }}
+          >
+            {activeStory ? (
+              <ReadingPage
+                story={activeStory}
+                stories={stories}
+                editors={about.editors}
+                writers={about.writers}
+                liked={liked.includes(activeStory.slug)}
+                saved={saved.includes(activeStory.slug)}
+                onToggleLike={toggleLiked}
+                onToggleSave={toggleSaved}
+                onBack={() => navigate("/")}
+                onOpenStory={openStory}
+                onNavigate={navigate}
+              />
+            ) : path === "/stories" ? (
+              <StoriesPage
+                stories={stories}
+                loading={loading && !live}
+                onOpen={openStory}
+              />
+            ) : path === "/writers" ? (
+              <WritersPage
+                editors={about.editors}
+                writers={about.writers}
+                stories={stories}
+                onSelect={selectContributor}
+              />
+            ) : path === "/about" ? (
+              <AboutPage
+                about={about}
+                storyCount={stories.length}
+                contributorCount={contributorCount}
+                onNavigate={navigate}
+              />
+            ) : storySlug ? (
+              <StoryNotFound loading={loading} onNavigate={navigate} />
+            ) : (
+              <>
+                <AIAssistant />
+                <Hero
+                  featured={stories[0]}
+                  storyCount={stories.length}
+                  contributorCount={contributorCount}
+                  loading={loading && !live}
+                  onOpen={openStory}
+                  onNavigate={navigate}
+                />
+
+                <Marquee topics={topics} />
+
+                <LatestStories
+                  stories={stories}
+                  loading={loading && !live}
+                  query={query}
+                  category={category}
+                  onQuery={setQuery}
+                  onCategory={setCategory}
+                  onOpen={openStory}
+                />
+
+                <EditorsSection editors={about.editors} stories={stories} />
+
+                <ContributorsSection
+                  editors={about.editors}
+                  writers={about.writers}
+                  stories={stories}
+                  onSelect={selectContributor}
+                />
+
+                <AboutSection
+                  about={about}
+                  storyCount={stories.length}
+                  contributorCount={contributorCount}
+                  onNavigate={navigate}
+                />
+
+                <SubscribeSection onNavigate={navigate} />
+              </>
+            )}
           </motion.div>
-        )}
-      </AnimatePresence>
+        </AnimatePresence>
+      </main>
 
-      {/* Volumetric Story Modal Popup */}
-      <Suspense fallback={null}>
-        <StoryModal 
-          story={selectedStory} 
-          onClose={() => handleSelectStory(null)} 
-          isLiked={selectedStory ? likedSlugs.includes(selectedStory.slug) : false}
-          isSaved={selectedStory ? savedSlugs.includes(selectedStory.slug) : false}
-          onToggleLike={handleToggleLike}
-          onToggleSave={handleToggleSave}
-        />
-      </Suspense>
+      <SiteFooter onNavigate={navigate} />
     </div>
   );
 }

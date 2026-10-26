@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import FALLBACK_ABOUT from "../src/data/fallbackAbout";
 
 type Story = {
   title: string;
@@ -256,49 +257,173 @@ function parseMediumRSS(xmlText: string): Story[] {
   return items;
 }
 
-async function fetchWithTimeout(url: string, timeout = 8000): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  timeout = 8000,
+  headers?: Record<string, string>,
+): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    return await fetch(url, { signal: controller.signal });
+    return await fetch(url, { signal: controller.signal, headers });
   } finally {
     clearTimeout(timer);
   }
 }
 
-async function fetchFreshStories(): Promise<Story[]> {
+const PUBLICATION_FEED = "https://medium.com/feed/the-ink-home";
+const MAX_STORIES = 50;
+const CORS_PROXY = "https://proxy.corsfix.com/?url=";
+const PROXY_ORIGIN = "https://theinkhome.live";
+let directRateLimitedUntil = 0;
+
+async function fetchViaCorsProxy(url: string): Promise<Story[]> {
   try {
-    const rss2JsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent("https://medium.com/feed/the-ink-home")}`;
-    const proxyRes = await fetchWithTimeout(rss2JsonUrl, 10000);
-    if (proxyRes.ok) {
-      const jsonPayload = await proxyRes.json();
-      if (jsonPayload && jsonPayload.status === "ok" && Array.isArray(jsonPayload.items) && jsonPayload.items.length > 0) {
-        return transformRSSItems(jsonPayload.items);
-      }
+    const response = await fetchWithTimeout(
+      `${CORS_PROXY}${encodeURIComponent(url)}`,
+      15000,
+      { Origin: PROXY_ORIGIN },
+    );
+    if (response.ok) {
+      const parsed = parseMediumRSS(await response.text());
+      if (parsed.length > 0) return parsed;
     }
   } catch (e) {
-    console.error("Vercel stories fetch failed:", e);
+    console.error(`Vercel CORS proxy failed for ${url}:`, e);
+  }
+  return [];
+}
+
+const AUTHOR_INDEX = new Map(
+  [...FALLBACK_ABOUT.editors, ...FALLBACK_ABOUT.writers].map((author) => [
+    author.name.toLowerCase(),
+    author,
+  ]),
+);
+
+function normalizeLink(link: string): string {
+  return (link || "").split("?")[0];
+}
+
+function enrichStory(story: Story): Story {
+  const meta = AUTHOR_INDEX.get(String(story.author || "").toLowerCase());
+  return {
+    ...story,
+    link: normalizeLink(story.link),
+    role: meta?.role || "Contributor",
+    avatar: meta?.avatar || "",
+    categories: Array.isArray(story.categories)
+      ? story.categories.filter((c) => c && c !== "the-ink-home").slice(0, 5)
+      : ["Editorial"],
+  };
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchFeedStories(url: string, useProxyFallback = false): Promise<Story[]> {
+  if (Date.now() > directRateLimitedUntil) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const response = await fetchWithTimeout(url, 9000);
+        if (response.ok) {
+          const parsed = parseMediumRSS(await response.text());
+          if (parsed.length > 0) return parsed;
+        }
+        if (response.status === 429 || response.status === 403) {
+          directRateLimitedUntil = Date.now() + 5 * 60 * 1000;
+          console.warn(`Vercel: Medium rate limited ${url}. Using proxy for 5 minutes.`);
+          break;
+        }
+      } catch (e) {
+        console.error(`Vercel RSS fetch failed for ${url} (attempt ${attempt + 1}):`, e);
+        await sleep(600 * (attempt + 1));
+      }
+    }
   }
 
-  try {
-    const response = await fetchWithTimeout("https://medium.com/feed/the-ink-home", 10000);
-    if (response.ok) {
-      const xmlData = await response.text();
-      const parsed = parseMediumRSS(xmlData);
-      if (parsed.length > 0) {
-        return parsed;
+  const proxied = await fetchViaCorsProxy(url);
+  if (proxied.length > 0) return proxied;
+
+  if (useProxyFallback) {
+    try {
+      const rss2JsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
+      const proxyRes = await fetchWithTimeout(rss2JsonUrl, 9000);
+      if (proxyRes.ok) {
+        const jsonPayload = await proxyRes.json();
+        if (jsonPayload?.status === "ok" && Array.isArray(jsonPayload.items) && jsonPayload.items.length > 0) {
+          return transformRSSItems(jsonPayload.items);
+        }
       }
+    } catch (e) {
+      console.error(`Vercel rss2json fallback failed for ${url}:`, e);
     }
-  } catch (e) {
-    console.error("Vercel RSS fetch failed:", e);
   }
 
   return [];
 }
 
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+  delayMs = 0,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const index = cursor++;
+      if (index >= items.length) return;
+      results[index] = await fn(items[index]);
+      if (delayMs > 0) await sleep(delayMs);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+async function fetchFreshStories(): Promise<Story[]> {
+  const main = await fetchFeedStories(PUBLICATION_FEED, true);
+
+  const tags = Array.from(
+    new Set(
+      main
+        .flatMap((story) => story.categories || [])
+        .map((tag) => String(tag).trim().toLowerCase())
+        .filter((tag) => tag.length > 1 && tag.length < 40 && tag !== "the-ink-home"),
+    ),
+  ).slice(0, 16);
+
+  const tagFeeds = tags.length
+    ? await mapWithConcurrency(
+        tags,
+        4,
+        (tag) => fetchFeedStories(`${PUBLICATION_FEED}/tagged/${encodeURIComponent(tag)}`),
+        120,
+      )
+    : [];
+
+  const seen = new Set<string>();
+  const merged: Story[] = [];
+
+  for (const story of [...main, ...tagFeeds.flat()]) {
+    const key = story.slug || normalizeLink(story.link) || story.title;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    merged.push(enrichStory(story));
+  }
+
+  merged.sort((a, b) => (Date.parse(b.pubDate) || 0) - (Date.parse(a.pubDate) || 0));
+
+  return merged.slice(0, MAX_STORIES);
+}
+
 const CACHE_TTL = 5 * 60 * 1000;
 let storyCache: Story[] = [];
 let storyCacheTime = 0;
+let activeFetch: Promise<Story[]> | null = null;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -306,11 +431,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (Date.now() - storyCacheTime > CACHE_TTL || storyCache.length === 0) {
-    storyCache = await fetchFreshStories();
-    storyCacheTime = Date.now();
+    if (!activeFetch) {
+      activeFetch = fetchFreshStories().finally(() => {
+        activeFetch = null;
+      });
+    }
+
+    const fresh = await activeFetch;
+    if (fresh.length > 0) {
+      storyCache = fresh;
+      storyCacheTime = Date.now();
+    } else if (storyCache.length === 0) {
+      storyCacheTime = Date.now() - CACHE_TTL + 30 * 1000;
+    }
   }
 
   const stories = storyCache.length > 0 ? storyCache : DEFAULT_STORIES.map((s) => ({ ...s }));
   res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
   return res.status(200).json({ source: "cache", stories });
 }
+
+export const maxDuration = 60;

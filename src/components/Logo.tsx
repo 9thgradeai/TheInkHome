@@ -33,7 +33,7 @@ export const Logo: React.FC<LogoProps> = ({
             The Ink Home
           </span>
           <span className="text-[9px] font-mono tracking-[0.25em] text-[var(--atmo-text)] uppercase mt-0.5">
-            Spatial Publication
+            Medium Publication
           </span>
         </div>
       )}

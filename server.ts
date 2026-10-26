@@ -5,6 +5,9 @@ import { createServer as createViteServer } from "vite";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import compression from "compression";
+import dotenv from "dotenv";
+
+dotenv.config();
 import {
   DEFAULT_STORIES,
   FALLBACK_ABOUT,
@@ -39,109 +42,267 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-async function fetchWithTimeout(url: string, timeout = PREFETCH_TIMEOUT): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  timeout = PREFETCH_TIMEOUT,
+  headers?: Record<string, string>,
+): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    return await fetch(url, { signal: controller.signal });
+    return await fetch(url, { signal: controller.signal, headers });
   } finally {
     clearTimeout(timer);
   }
 }
 
-async function fetchStoriesWithRetry(retries = 2): Promise<any[]> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const rss2JsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent("https://medium.com/feed/the-ink-home")}`;
-      const proxyRes = await fetchWithTimeout(rss2JsonUrl, 10000);
-      if (proxyRes.ok) {
-        const jsonPayload = await proxyRes.json();
-        if (jsonPayload && jsonPayload.status === "ok" && Array.isArray(jsonPayload.items) && jsonPayload.items.length > 0) {
-          return transformRSSItems(jsonPayload.items);
-        }
-      }
-    } catch (e) {
-      console.warn(`syncData Tier 1 attempt ${attempt + 1} failed:`, e);
-    }
+const CORS_PROXY = "https://proxy.corsfix.com/?url=";
+const PROXY_ORIGIN = "http://localhost:3000";
+let directRateLimitedUntil = 0;
 
-    if (attempt < retries) {
-      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+async function fetchViaCorsProxy(url: string): Promise<any[]> {
+  try {
+    const response = await fetchWithTimeout(
+      `${CORS_PROXY}${encodeURIComponent(url)}`,
+      18000,
+      { Origin: PROXY_ORIGIN },
+    );
+    if (response.ok) {
+      const parsed = parseMediumRSS(await response.text());
+      if (parsed.length > 0) return parsed;
+    }
+    if (response.status === 429 || response.status === 403) {
+      console.warn(`CORS proxy rate limited for ${url}.`);
+    }
+  } catch (e) {
+    console.warn(`CORS proxy failed for ${url}:`, e);
+  }
+  return [];
+}
+
+const PUBLICATION_FEED = "https://medium.com/feed/the-ink-home";
+const MAX_STORIES = 50;
+const DISK_CACHE_FILE = path.join(process.cwd(), ".cache", "publication.json");
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function loadCacheFromDisk() {
+  try {
+    if (!fs.existsSync(DISK_CACHE_FILE)) return;
+    const payload = JSON.parse(fs.readFileSync(DISK_CACHE_FILE, "utf8"));
+    if (Array.isArray(payload?.stories) && payload.stories.length > 0) {
+      cache = {
+        stories: payload.stories,
+        about: payload.about || null,
+        lastUpdated: payload.lastUpdated || Date.now(),
+      };
+      console.log(`Loaded ${payload.stories.length} stories from disk cache.`);
+    }
+  } catch (error) {
+    console.warn("Could not load disk cache:", error);
+  }
+}
+
+function saveCacheToDisk() {
+  try {
+    fs.mkdirSync(path.dirname(DISK_CACHE_FILE), { recursive: true });
+    fs.writeFileSync(DISK_CACHE_FILE, JSON.stringify(cache), "utf8");
+  } catch (error) {
+    console.warn("Could not save disk cache:", error);
+  }
+}
+
+const AUTHOR_INDEX = new Map(
+  [...FALLBACK_ABOUT.editors, ...FALLBACK_ABOUT.writers].map((author) => [
+    author.name.toLowerCase(),
+    author,
+  ]),
+);
+
+function normalizeLink(link: string): string {
+  return (link || "").split("?")[0];
+}
+
+function enrichStory(story: any): any {
+  const meta = AUTHOR_INDEX.get(String(story.author || "").toLowerCase());
+  return {
+    ...story,
+    link: normalizeLink(story.link),
+    role: meta?.role || "Contributor",
+    avatar: meta?.avatar || "",
+    username: meta?.username || "",
+    categories: Array.isArray(story.categories)
+      ? story.categories.filter((c: string) => c && c !== "the-ink-home").slice(0, 5)
+      : ["Editorial"],
+  };
+}
+
+async function fetchFeedStories(url: string, useProxyFallback = false): Promise<any[]> {
+  if (Date.now() > directRateLimitedUntil) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const response = await fetchWithTimeout(url, 12000);
+        if (response.ok) {
+          const parsed = parseMediumRSS(await response.text());
+          if (parsed.length > 0) return parsed;
+        }
+        if (response.status === 429 || response.status === 403) {
+          directRateLimitedUntil = Date.now() + 5 * 60 * 1000;
+          console.warn(`Medium rate limited ${url}. Using proxy for the next 5 minutes.`);
+          break;
+        }
+      } catch (e) {
+        console.warn(`RSS fetch failed for ${url} (attempt ${attempt + 1}):`, e);
+        await sleep(800 * (attempt + 1));
+      }
     }
   }
 
-  for (let attempt = 0; attempt <= retries; attempt++) {
+  const proxied = await fetchViaCorsProxy(url);
+  if (proxied.length > 0) return proxied;
+
+  if (useProxyFallback) {
     try {
-      const response = await fetchWithTimeout("https://medium.com/feed/the-ink-home", 10000);
-      if (response.ok) {
-        const xmlData = await response.text();
-        const parsed = parseMediumRSS(xmlData);
-        if (parsed.length > 0) {
-          return parsed;
+      const proxyRes = await fetchWithTimeout(
+        `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`,
+        12000,
+      );
+      if (proxyRes.ok) {
+        const payload = await proxyRes.json();
+        if (payload?.status === "ok" && Array.isArray(payload.items) && payload.items.length > 0) {
+          return transformRSSItems(payload.items);
         }
       }
     } catch (e) {
-      console.warn(`syncData Tier 2 attempt ${attempt + 1} failed:`, e);
-    }
-
-    if (attempt < retries) {
-      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+      console.warn(`rss2json fallback failed for ${url}:`, e);
     }
   }
 
   return [];
 }
 
-async function syncData() {
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+  delayMs = 0,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const index = cursor++;
+      if (index >= items.length) return;
+      results[index] = await fn(items[index]);
+      if (delayMs > 0) await sleep(delayMs);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+async function fetchStoriesWithRetry(): Promise<any[]> {
+  const main = await fetchFeedStories(PUBLICATION_FEED, true);
+
+  const tags = Array.from(
+    new Set(
+      main
+        .flatMap((story: any) => story.categories || [])
+        .map((tag: string) => String(tag).trim().toLowerCase())
+        .filter((tag: string) => tag.length > 1 && tag.length < 40 && tag !== "the-ink-home"),
+    ),
+  ).slice(0, 22);
+
+  const tagFeeds = tags.length
+    ? await mapWithConcurrency(
+        tags,
+        3,
+        (tag) => fetchFeedStories(`${PUBLICATION_FEED}/tagged/${encodeURIComponent(tag)}`),
+        220,
+      )
+    : [];
+
+  const seen = new Set<string>();
+  const merged: any[] = [];
+
+  for (const story of [...main, ...tagFeeds.flat()]) {
+    const key = story.slug || normalizeLink(story.link) || story.title;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    merged.push(enrichStory(story));
+  }
+
+  merged.sort((a, b) => {
+    const aTime = Date.parse(a.pubDate) || 0;
+    const bTime = Date.parse(b.pubDate) || 0;
+    return bTime - aTime;
+  });
+
+  return merged.slice(0, MAX_STORIES);
+}
+
+let activeSync: Promise<void> | null = null;
+
+function syncData(): Promise<void> {
+  if (activeSync) return activeSync;
+
+  activeSync = performSync().finally(() => {
+    activeSync = null;
+  });
+
+  return activeSync;
+}
+
+async function performSync() {
   console.log("Background sync: Starting data fetch...");
   let fetchedStories: any[] = [];
 
   try {
-    fetchedStories = await fetchStoriesWithRetry(2);
+    fetchedStories = await fetchStoriesWithRetry();
   } catch (e) {
     console.warn("syncData failed after retries:", e);
   }
 
-  let finalStories = fetchedStories;
-  if (finalStories.length === 0) {
-    finalStories = DEFAULT_STORIES.map((s) => ({ ...s }));
-  } else {
-    DEFAULT_STORIES.forEach((ds) => {
-      const alreadyExists = finalStories.some(
-        (us) => us.title.toLowerCase() === ds.title.toLowerCase() || us.slug === ds.slug
-      );
-      if (!alreadyExists) {
-        finalStories.push({ ...ds });
-      }
-    });
+  const updatedAbout = cache.about
+    ? cache.about
+    : {
+        ...FALLBACK_ABOUT,
+        editors: FALLBACK_ABOUT.editors.map((e) => ({ ...e })),
+        writers: FALLBACK_ABOUT.writers.map((w) => ({ ...w })),
+      };
+
+  if (fetchedStories.length > 0) {
+    cache = {
+      stories: fetchedStories.slice(0, MAX_STORIES),
+      about: updatedAbout,
+      lastUpdated: Date.now(),
+    };
+    saveCacheToDisk();
+    console.log(`Background sync completed. Stories cached: ${cache.stories.length}`);
+    return;
   }
 
-  let updatedAbout = { ...FALLBACK_ABOUT, editors: FALLBACK_ABOUT.editors.map((e) => ({ ...e })), writers: FALLBACK_ABOUT.writers.map((w) => ({ ...w })) };
-  try {
-    const editorAvatars = await prefetchAvatars(FALLBACK_ABOUT.editors, MAX_PREFETCH_CONCURRENCY);
-    const writerAvatars = await prefetchAvatars(FALLBACK_ABOUT.writers, MAX_PREFETCH_CONCURRENCY);
-
-    updatedAbout = {
-      description: FALLBACK_ABOUT.description,
-      officialWebsite: FALLBACK_ABOUT.officialWebsite,
-      editors: FALLBACK_ABOUT.editors.map((e, i) => ({ ...e, avatar: editorAvatars[i] || e.avatar })),
-      writers: FALLBACK_ABOUT.writers.map((w, i) => ({ ...w, avatar: writerAvatars[i] || (w as any).avatar || "" })),
-    };
-  } catch (e) {
-    console.warn("syncData about fetch failed:", e);
+  if (cache.stories.length > 0) {
+    cache = { ...cache, about: updatedAbout };
+    saveCacheToDisk();
+    console.warn(`Background sync returned no stories. Keeping ${cache.stories.length} cached stories.`);
+    return;
   }
 
   cache = {
-    stories: finalStories,
+    stories: DEFAULT_STORIES.map((s) => ({ ...s })),
     about: updatedAbout,
     lastUpdated: Date.now(),
   };
-  console.log(`Background sync completed. Stories cached: ${finalStories.length}`);
+  console.warn("Background sync returned no stories and no cache exists. Using default stories.");
 }
 
 async function serveSPAWithSEO(req: express.Request, res: express.Response, viteInstance?: any) {
   const slug = req.params.slug;
 
-  if (cache.stories.length === 0) {
+  if (cache.stories.length < 10) {
     try {
       await syncData();
     } catch (e) {
@@ -151,8 +312,17 @@ async function serveSPAWithSEO(req: express.Request, res: express.Response, vite
 
   const story = cache.stories.find((s) => s.slug === slug);
 
-  let title = "The Ink Home | Where Words Feel at Home";
-  let description = "Where spatial typography, code shaders, and cyber-philosophical stories merge into floating geometric objects in space.";
+  const pagePath = (req.originalUrl || "/").split("?")[0];
+  const pageTitles: Record<string, string> = {
+    "/": "The Ink Home — Where Words Feel at Home",
+    "/stories": "Stories | The Ink Home",
+    "/writers": "Writers | The Ink Home",
+    "/about": "About | The Ink Home",
+  };
+
+  let title = pageTitles[pagePath] || "The Ink Home — Where Words Feel at Home";
+  let description =
+    "An independent Medium publication of essays on technology, culture, creativity, relationships and the quiet parts of being human.";
   let cover = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80";
   let url = `https://theinkhome.live/story/${slug || ""}`;
 
@@ -181,24 +351,30 @@ async function serveSPAWithSEO(req: express.Request, res: express.Response, vite
       html = await viteInstance.transformIndexHtml(req.originalUrl, html);
     }
 
+    const cleanTitle = title.replace(/\s+/g, " ").trim();
+    const cleanDescription = description.replace(/\s+/g, " ").trim();
+
     const metaTags = [
       `<!-- Dynamic SEO tags injected by Express server -->`,
-      `<title>${escapeHtml(title)}</title>`,
-      `<meta name="description" content="${escapeHtml(description)}" />`,
-      `<meta property="og:title" content="${escapeHtml(title)}" />`,
-      `<meta property="og:description" content="${escapeHtml(description)}" />`,
+      `<title>${escapeHtml(cleanTitle)}</title>`,
+      `<meta name="description" content="${escapeHtml(cleanDescription)}" />`,
+      `<meta property="og:title" content="${escapeHtml(cleanTitle)}" />`,
+      `<meta property="og:description" content="${escapeHtml(cleanDescription)}" />`,
       `<meta property="og:image" content="${escapeHtml(cover)}" />`,
       `<meta property="og:url" content="${escapeHtml(url)}" />`,
       `<meta property="og:type" content="article" />`,
       `<meta name="twitter:card" content="summary_large_image" />`,
-      `<meta name="twitter:title" content="${escapeHtml(title)}" />`,
-      `<meta name="twitter:description" content="${escapeHtml(description)}" />`,
+      `<meta name="twitter:title" content="${escapeHtml(cleanTitle)}" />`,
+      `<meta name="twitter:description" content="${escapeHtml(cleanDescription)}" />`,
       `<meta name="twitter:image" content="${escapeHtml(cover)}" />`,
     ].join("\n    ");
 
-    if (html.includes("<title>")) {
-      html = html.replace(/<title>[\s\S]*?<\/title>/i, "");
-    }
+    html = html
+      .replace(/<title>[\s\S]*?<\/title>/gi, "")
+      .replace(
+        /<meta[^>]+(?:name|property)=["'](?:description|og:title|og:description|og:image|og:url|og:type|twitter:card|twitter:title|twitter:description|twitter:image)["'][^>]*\/?>/gi,
+        "",
+      );
     html = html.replace("<head>", `<head>${metaTags}`);
 
     res.status(200).set({ "Content-Type": "text/html" }).end(html);
@@ -423,7 +599,7 @@ async function startServer() {
 
   app.get("/api/stories", async (req, res) => {
     res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
-    if (cache.stories.length === 0) {
+    if (cache.stories.length < 10) {
       try {
         await syncData();
       } catch (err) {
@@ -478,7 +654,7 @@ async function startServer() {
       next();
     });
 
-    app.get(["/", "/3d", "/grid", "/list", "/about", "/saved", "/story/:slug"], async (req, res) => {
+    app.get(["/", "/stories", "/writers", "/about", "/story/:slug"], async (req, res) => {
       await serveSPAWithSEO(req, res);
     });
 
@@ -487,11 +663,16 @@ async function startServer() {
     });
   }
 
+  loadCacheFromDisk();
+
   const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`The Ink Home Server running on http://localhost:${PORT}`);
-    prefetchAvatars(FALLBACK_ABOUT.editors, MAX_PREFETCH_CONCURRENCY);
-    prefetchAvatars(FALLBACK_ABOUT.writers, MAX_PREFETCH_CONCURRENCY);
+    syncData().catch((err) => console.warn("Initial background sync failed:", err));
   });
+
+  setInterval(() => {
+    syncData().catch((err) => console.warn("Scheduled background sync failed:", err));
+  }, 10 * 60 * 1000);
 
   server.on("error", (err) => {
     console.error("Server failed to start:", err);
