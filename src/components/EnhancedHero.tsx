@@ -56,7 +56,9 @@ export default function EnhancedHero({ storyCount, contributorCount, loading, on
               className="flex flex-wrap items-center gap-3 mb-8"
             >
               <div className="flex items-center gap-2 rounded-full border border-[#c8ff4d]/30 bg-[#c8ff4d]/10 px-4 py-2 backdrop-blur-sm">
-                <Sparkles className="h-3.5 w-3.5 text-[#c8ff4d]" />
+                <svg className="h-3.5 w-3.5" viewBox="0 0 1043.63 592.71" fill="#c8ff4d">
+                  <path d="M588.67 296.36c0 163.67-131.78 296.35-294.33 296.35S0 460 0 296.36 131.78 0 294.34 0s294.33 132.69 294.33 296.36M911.56 296.36c0 154.06-65.89 279-147.17 279s-147.17-124.94-147.17-279 65.88-279 147.16-279 147.17 124.9 147.17 279M1043.63 296.36c0 138-23.17 249.94-51.76 249.94s-51.75-111.91-51.75-249.94 23.17-249.94 51.75-249.94 51.76 111.9 51.76 249.94" />
+                </svg>
                 <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#c8ff4d]">
                   Medium Publication
                 </span>
@@ -67,7 +69,7 @@ export default function EnhancedHero({ storyCount, contributorCount, loading, on
                   <div className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#c8ff4d]" />
                 </div>
                 <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/60">
-                  {loading ? "Syncing..." : `${storyCount} Stories`}
+                  {loading ? "Syncing..." : "500+ Stories"}
                 </span>
               </div>
             </motion.div>
