@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import { ArrowDownRight, ArrowUpRight, Sparkles, BookOpen } from "lucide-react";
 import { Suspense, lazy } from "react";
 
-const Hero3DCanvas = lazy(() => import("./Hero3DCanvas"));
+const InkHomeCanvas = lazy(() => import("./InkHomeCanvas"));
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -41,9 +41,9 @@ export default function EnhancedHero({ storyCount, contributorCount, loading, on
         />
       </div>
 
-      {/* 3D Canvas */}
+      {/* 3D Canvas - Ink & Home Story */}
       <Suspense fallback={null}>
-        <Hero3DCanvas />
+        <InkHomeCanvas />
       </Suspense>
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-8 w-full z-10">
