@@ -20,31 +20,52 @@ export async function askAI(
   const { onError, onRetry } = options;
 
   try {
+    // Filter out system messages and limit history
+    const userMessages = messages
+      .filter(m => m.role !== "system")
+      .slice(-10); // Limit to last 10 messages
+
     const response = await fetch(AI_ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
-        messages,
-        temperature: options.temperature ?? 0.5,
-        max_tokens: options.maxTokens ?? 512,
+        messages: userMessages,
+        temperature: Math.max(0, Math.min(1, options.temperature ?? 0.5)),
+        max_tokens: Math.max(1, Math.min(1024, options.maxTokens ?? 512)),
       }),
       signal: AbortSignal.timeout(30000),
     });
 
     if (!response.ok) {
-      const errData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
-      throw new Error(errData.error || `HTTP ${response.status} error`);
+      const errData = await response.json().catch(() => ({ error: `Service error` }));
+      const errorMsg = errData.error || "Unable to connect to AI assistant";
+      onError?.(errorMsg);
+      onRetry?.();
+      throw new Error(errorMsg);
     }
 
     const data = (await response.json()) as { reply?: string };
-    if (!data.reply) {
-      throw new Error("AI response was empty or malformed");
+    if (!data.reply || typeof data.reply !== "string") {
+      const errorMsg = "AI response was empty";
+      onError?.(errorMsg);
+      onRetry?.();
+      throw new Error(errorMsg);
     }
     return data.reply;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown AI error";
-    onError?.(message);
-    onRetry?.();
+    if (err instanceof Error && err.name === "TimeoutError") {
+      const timeoutMsg = "Request timed out. Please try again.";
+      onError?.(timeoutMsg);
+      onRetry?.();
+      throw new Error(timeoutMsg);
+    }
+    if (!message.includes("AI")) {
+      onError?.(message);
+      onRetry?.();
+    }
     throw err;
   }
 }

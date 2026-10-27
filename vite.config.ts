@@ -17,9 +17,16 @@ export default defineConfig(() => {
         output: {
           chunkFileNames: 'assets/[name]-[hash].js',
           entryFileNames: 'assets/[name]-[hash].js',
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom'],
+            'motion-vendor': ['motion'],
+            'ui-vendor': ['lucide-react'],
+          },
         },
-        external: ['three', '@google/genai', '@upstash/redis', 'express', 'helmet', 'express-rate-limit'],
+        external: ['express', 'helmet', 'express-rate-limit', 'compression', '@upstash/redis'],
       },
+      chunkSizeWarningLimit: 1000,
+      sourcemap: false,
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',

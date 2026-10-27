@@ -699,3 +699,45 @@ main > div > section {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Focus styles for accessibility */
+*:focus-visible {
+  outline: 2px solid #c8ff4d;
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #c8ff4d;
+  outline-offset: 2px;
+}
+
+/* Skip to content link */
+.skip-to-content {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #c8ff4d;
+  color: #000000;
+  padding: 8px 16px;
+  text-decoration: none;
+  z-index: 10000;
+  font-weight: 600;
+  transition: top 0.2s;
+}
+
+.skip-to-content:focus {
+  top: 0;
+}
+
+/* Improve touch targets */
+@media (max-width: 640px) {
+  button,
+  a,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
