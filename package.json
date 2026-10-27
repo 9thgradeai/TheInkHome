@@ -17,6 +17,8 @@
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.2",
     "@tailwindcss/vite": "^4.1.14",
     "@upstash/redis": "^1.23.0",
     "@vitejs/plugin-react": "^5.0.4",

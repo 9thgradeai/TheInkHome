@@ -19,6 +19,7 @@ import {
 import SiteHeader from "./components/SiteHeader";
 import SiteFooter from "./components/SiteFooter";
 import ReadingPage from "./components/ReadingPage";
+import EnhancedHero from "./components/EnhancedHero";
 import { StoryCard } from "./components/StoryCard";
 import StoryCover from "./components/StoryCover";
 import AuthorAvatar from "./components/AuthorAvatar";
@@ -1185,12 +1186,10 @@ export default function App() {
               <StoryNotFound loading={loading} onNavigate={navigate} />
             ) : (
               <>
-                <Hero
-                  featured={stories[0]}
+                <EnhancedHero
                   storyCount={stories.length}
                   contributorCount={contributorCount}
                   loading={loading && !live}
-                  onOpen={openStory}
                   onNavigate={navigate}
                 />
 
