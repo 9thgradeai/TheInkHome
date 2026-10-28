@@ -1,13 +1,6 @@
 {
-  "version": 5,
-  "functions": {
-    "api/stories.ts": { "maxDuration": 60 },
-    "api/about.ts": { "maxDuration": 30 },
-    "api/ai.ts": { "maxDuration": 60 },
-    "api/health.ts": { "maxDuration": 10 },
-    "api/track.ts": { "maxDuration": 10 },
-    "api/test-vercel-module.ts": { "maxDuration": 10 }
-  },
+  "version": 6,
+  "functions": {},
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/$1" },
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
