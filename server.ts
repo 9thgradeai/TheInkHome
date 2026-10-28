@@ -7,6 +7,13 @@ import rateLimit from "express-rate-limit";
 import compression from "compression";
 import dotenv from "dotenv";
 import { UpstashRedisClient } from "@upstash/redis";
+import {
+  DEFAULT_STORIES,
+  FALLBACK_ABOUT,
+  transformRSSItems,
+  parseMediumRSS,
+  djb2Hash,
+} from "./src/lib/api-server";
 
 dotenv.config();
 
@@ -23,7 +30,7 @@ let cache: {
   about: any;
   lastUpdated: number;
 } = {
-  stories [],
+  stories: [],
   about: null,
   lastUpdated: 0,
 };
