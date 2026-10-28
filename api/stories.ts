@@ -426,29 +426,35 @@ let storyCacheTime = 0;
 let activeFetch: Promise<Story[]> | null = null;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  if (Date.now() - storyCacheTime > CACHE_TTL || storyCache.length === 0) {
-    if (!activeFetch) {
-      activeFetch = fetchFreshStories().finally(() => {
-        activeFetch = null;
-      });
+  try {
+    if (req.method !== "GET") {
+      return res.status(405).json({ error: "Method not allowed" });
     }
 
-    const fresh = await activeFetch;
-    if (fresh.length > 0) {
-      storyCache = fresh;
-      storyCacheTime = Date.now();
-    } else if (storyCache.length === 0) {
-      storyCacheTime = Date.now() - CACHE_TTL + 30 * 1000;
-    }
-  }
+    if (Date.now() - storyCacheTime > CACHE_TTL || storyCache.length === 0) {
+      if (!activeFetch) {
+        activeFetch = fetchFreshStories().finally(() => {
+          activeFetch = null;
+        });
+      }
 
-  const stories = storyCache.length > 0 ? storyCache : DEFAULT_STORIES.map((s) => ({ ...s }));
-  res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
-  return res.status(200).json({ source: "cache", stories });
+      const fresh = await activeFetch;
+      if (fresh.length > 0) {
+        storyCache = fresh;
+        storyCacheTime = Date.now();
+      } else if (storyCache.length === 0) {
+        storyCacheTime = Date.now() - CACHE_TTL + 30 * 1000;
+      }
+    }
+
+    const stories = storyCache.length > 0 ? storyCache : DEFAULT_STORIES.map((s) => ({ ...s }));
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+    return res.status(200).json({ source: "cache", stories });
+  } catch (error: any) {
+    // Log error for debugging
+    console.error("Stories handler error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error?.message ?? String(error) });
+  }
 }
 
 export const maxDuration = 60;
