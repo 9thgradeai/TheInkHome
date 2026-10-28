@@ -1144,15 +1144,15 @@ export default function App() {
         activeStory.description || "A story from The Ink Home on Medium.",
       );
       twitterImg?.setAttribute("content", story.cover || "/The_Ink_Home.webp");
-    } else if (pageTitles[path]) {
-      document.title = pageTitles[path];
-      description?.setAttribute("content", defaultDescriptions[path]);
-      ogTitle?.setAttribute("content", pageTitles[path]);
+    } else if (baseDescriptions[path]) {
+      document.title = baseDescriptions[path];
+      description?.setAttribute("content", baseDescriptions[path]);
+      ogTitle?.setAttribute("content", baseOgData[path]?.title || defaultOg.title);
       ogDesc?.setAttribute("content", baseOgData[path]?.description || defaultOg.description);
       ogImg?.setAttribute("content", baseOgData[path]?.image || defaultOg.image);
       ogType?.setAttribute("content", "website");
       twitterCard?.setAttribute("content", "summary_large_image");
-      twitterTitle?.setAttribute("content", pageTitles[path]);
+      twitterTitle?.setAttribute("content", baseOgData[path]?.title || defaultOg.title);
       twitterDesc?.setAttribute("content", baseOgData[path]?.description || defaultOg.description);
       twitterImg?.setAttribute("content", baseOgData[path]?.image || defaultOg.image);
     } else {
