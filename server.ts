@@ -6,16 +6,14 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import compression from "compression";
 import dotenv from "dotenv";
+import { UpstashRedisClient } from "@upstash/redis";
 
 dotenv.config();
-import {
-  DEFAULT_STORIES,
-  FALLBACK_ABOUT,
-  transformRSSItems,
-  parseMediumRSS,
-  djb2Hash,
-} from "./src/lib/api-server";
-import { AIRequestSchema } from "./src/lib/validation";
+
+const redis = new UpstashRedisClient({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
 
 const AVATAR_CACHE_TTL = 1000 * 60 * 60;
 const avatarCache = new Map<string, { url: string; expiresAt: number }>();
@@ -25,7 +23,7 @@ let cache: {
   about: any;
   lastUpdated: number;
 } = {
-  stories: [],
+  stories [],
   about: null,
   lastUpdated: 0,
 };
@@ -560,27 +558,72 @@ async function startServer() {
   });
 
   app.get("/api/stories", async (req, res) => {
-    res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
-    if (cache.stories.length < 10) {
-      try {
-        await syncData();
-      } catch (err) {
-        console.error("Initial data sync failed");
+    try {
+      const cacheKey = "stories:latest";
+      const cached = await redis.get(cacheKey);
+      
+      if (cached) {
+        res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+        return res.json({ source: "redis", stories: cached });
       }
+
+      // Fetch fresh stories if not in cache
+      if (cache.stories.length < 10) {
+        try {
+          const freshStories = await syncData();
+          if (freshStories.length > 0) {
+            await redis.set(cacheKey, freshStories, {
+              ex: 300, // 5 minutes TTL
+            });
+          }
+        } catch (err) {
+          console.error("Initial data sync failed");
+        }
+      }
+
+      // Store in Redis
+      if (cache.stories.length > 0) {
+        await redis.set(cacheKey, cache.stories, {
+          ex: 300,
+        });
+      }
+
+      res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+      return res.json({ source: "cache", stories: cache.stories });
+    } catch (error) {
+      console.error("Stories API error:", error);
+      res.status(500).json({ error: "Failed to fetch stories" });
     }
-    res.json({ source: "cache", stories: cache.stories });
   });
 
   app.get("/api/about", async (req, res) => {
-    res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
-    if (!cache.about) {
-      try {
-        await syncData();
-      } catch (err) {
-        console.error("Initial about sync failed");
+    try {
+      const cached = await redis.get("about:publication");
+      
+      if (cached) {
+        res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+        return res.json({ source: "redis", about: cached });
       }
+
+      if (!cache.about) {
+        try {
+          await syncData();
+        } catch (err) {
+          console.error("Initial about sync failed");
+        }
+      }
+
+      const aboutData = cache.about || FALLBACK_ABOUT;
+      await redis.set("about:publication", aboutData, {
+        ex: 300,
+      });
+
+      res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+      return res.json({ source: "cache", about: aboutData });
+    } catch (error) {
+      console.error("About API error:", error);
+      res.status(500).json({ error: "Failed to fetch about data" });
     }
-    res.json(cache.about || FALLBACK_ABOUT);
   });
 
   app.post("/api/track", (req, res) => {
@@ -600,6 +643,29 @@ async function startServer() {
 
   app.post("/api/ai", async (req, res) => {
     res.set("Cache-Control", "no-store");
+    res.set("X-Accel-Buffering", "false"); // Disable nginx buffering for streaming
+    
+    // Rate limiting using Redis
+    const ip = req.ip || "unknown";
+    const rateLimitKey = `ai:rate_limit:${ip}`;
+    const now = Date.now();
+    const windowMs = 60 * 1000;
+    const maxRequests = 10;
+    
+    try {
+      const count = await redis.incr(rateLimitKey);
+      if (count === 1) {
+        await redis.expire(rateLimitKey, windowMs / 1000);
+      }
+      
+      if (count > maxRequests) {
+        return res.status(429).json({ error: "Too many requests. Please try again later." });
+      }
+    } catch (err) {
+      // If Redis fails, allow the request through (no rate limiting fallback)
+      console.warn("Redis rate limit failed, allowing request");
+    }
+
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
       return res.status(500).json({ error: "AI assistant is not configured." });
@@ -627,7 +693,7 @@ async function startServer() {
           ],
           temperature,
           max_tokens: Math.min(max_tokens, 512),
-          stream: false,
+          stream: true, // Enable streaming
         }),
         signal: AbortSignal.timeout(30000),
       });
@@ -640,12 +706,46 @@ async function startServer() {
         return res.status(503).json({ error: "AI service temporarily unavailable. Please try again later." });
       }
 
-      const data = await groqRes.json();
-      const reply = data?.choices?.[0]?.message?.content || "";
-      if (!reply) {
-        return res.status(502).json({ error: "AI response was empty. Please try again." });
+      // Stream response back to client
+      const { Readable } = await import("stream");
+      const readable = Readable.from(groqRes.body as any);
+      
+      res.setHeader("Content-Type", "application/json");
+      
+      let fullReply = "";
+      
+      for await (const chunk of groqRes.body as any) {
+        const text = chunk.toString();
+        // Parse SSE or JSON lines from Groq
+        const lines = text.split("\n");
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const dataStr = line.slice(6);
+            try {
+              const data = JSON.parse(dataStr);
+              if (data.choices?.[0]?.delta?.content) {
+                fullReply += data.choices[0].delta.content;
+              }
+              if (data.done) {
+                break;
+              }
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
       }
-      return res.status(200).json({ reply });
+      
+      if (!fullReply) {
+        const data = await groqRes.json();
+        const reply = data?.choices?.[0]?.message?.content || "";
+        if (!reply) {
+          return res.status(502).json({ error: "AI response was empty. Please try again." });
+        }
+        return res.status(200).json({ reply });
+      }
+      
+      return res.status(200).json({ reply: fullReply });
     } catch (error) {
       console.error("AI endpoint error:", error instanceof Error ? error.message : "unknown");
       return res.status(500).json({ error: "AI assistant temporarily unavailable. Please try again." });

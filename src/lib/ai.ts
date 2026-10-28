@@ -9,6 +9,7 @@ export interface AIAssistantOptions {
   onRetry?: () => void;
   temperature?: number;
   maxTokens?: number;
+  signal?: AbortSignal;
 }
 
 const AI_ENDPOINT = "/api/ai";
@@ -17,7 +18,9 @@ export async function askAI(
   messages: AIMessage[],
   options: AIAssistantOptions = {},
 ): Promise<string> {
-  const { onError, onRetry } = options;
+  const { onError, onRetry, signal } = options;
+  const temperature = options.temperature ?? 0.5;
+  const maxTokens = options.maxTokens ?? 512;
 
   try {
     // Filter out system messages and limit history
@@ -25,17 +28,18 @@ export async function askAI(
       .filter(m => m.role !== "system")
       .slice(-10); // Limit to last 10 messages
 
-    const response = await fetch(AI_ENDPOINT, {
+    const response = await fetch("/api/ai", {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         messages: userMessages,
-        temperature: Math.max(0, Math.min(1, options.temperature ?? 0.5)),
-        max_tokens: Math.max(1, Math.min(1024, options.maxTokens ?? 512)),
+        temperature: Math.max(0, Math.min(1, temperature)),
+        max_tokens: Math.max(1, Math.min(1024, maxTokens)),
+        stream: false, // We're getting full response for now
       }),
-      signal: AbortSignal.timeout(30000),
+      signal: signal || AbortSignal.timeout(30000),
     });
 
     if (!response.ok) {

@@ -31,6 +31,7 @@ import StoriesPage from "./pages/StoriesPage";
 import WritersPage from "./pages/WritersPage";
 import AboutPage from "./pages/AboutPage";
 import AIAssistant from "./components/AIAssistant";
+import { getLikesCount } from "./lib/interaction";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const STORY_CACHE_KEY = "the-ink-home:stories:v4";
@@ -1085,14 +1086,46 @@ export default function App() {
 
   useEffect(() => {
     const description = document.querySelector('meta[name="description"]');
-    const pageTitles: Record<string, string> = {
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    const ogImg = document.querySelector('meta[property="og:image"]');
+    const ogType = document.querySelector('meta[property="og:type"]');
+    const twitterCard = document.querySelector('meta[name="twitter:card"]');
+    const twitterTitle = document.querySelector('meta[name="twitter:title"]');
+    const twitterDesc = document.querySelector('meta[name="twitter:description"]');
+    const twitterImg = document.querySelector('meta[name="twitter:image"]');
+
+    const baseDescriptions: Record<string, string> = {
       "/": "The Ink Home — Where Words Feel at Home",
       "/stories": "Stories | The Ink Home",
       "/writers": "Writers | The Ink Home",
       "/about": "About | The Ink Home",
     };
-    const defaultDescription =
-      "An independent Medium publication of essays on technology, culture, creativity, relationships and the quiet parts of being human.";
+
+    const baseOgData: Record<string, { title: string; description: string; image: string }> = {
+      "/": {
+        title: "The Ink Home",
+        description: "An independent Medium publication of essays on technology, culture, creativity, relationships and the quiet parts of being human.",
+        image: "/The_Ink_Home.webp",
+      },
+      "/stories": {
+        title: "Stories | The Ink Home",
+        description: "An independent Medium publication of essays on technology, culture, creativity, relationships and the quiet parts of being human.",
+        image: "/The_Ink_Home.webp",
+      },
+      "/writers": {
+        title: "Writers | The Ink Home",
+        description: "Meet the writers and editors of The Ink Home publication.",
+        image: "/The_Ink_Home.webp",
+      },
+      "/about": {
+        title: "About | The Ink Home",
+        description: "Learn about The Ink Home publication, our editors, submission guidelines, and writing specs.",
+        image: "/The_Ink_Home.webp",
+      },
+    };
+
+    const defaultOg = baseOgData["/"];
 
     if (activeStory) {
       document.title = `${activeStory.title} | The Ink Home`;
@@ -1100,12 +1133,39 @@ export default function App() {
         "content",
         activeStory.description || "A story from The Ink Home on Medium.",
       );
+      ogTitle?.setAttribute("content", `${activeStory.title} | The Ink Home`);
+      ogDesc?.setAttribute("content", activeStory.description || "A story from The Ink Home on Medium.");
+      ogImg?.setAttribute("content", story.cover || "/The_Ink_Home.webp");
+      ogType?.setAttribute("content", "article");
+      twitterCard?.setAttribute("content", "summary_large_image");
+      twitterTitle?.setAttribute("content", `${activeStory.title} | The Ink Home`);
+      twitterDesc?.setAttribute(
+        "content",
+        activeStory.description || "A story from The Ink Home on Medium.",
+      );
+      twitterImg?.setAttribute("content", story.cover || "/The_Ink_Home.webp");
     } else if (pageTitles[path]) {
       document.title = pageTitles[path];
-      description?.setAttribute("content", defaultDescription);
+      description?.setAttribute("content", defaultDescriptions[path]);
+      ogTitle?.setAttribute("content", pageTitles[path]);
+      ogDesc?.setAttribute("content", baseOgData[path]?.description || defaultOg.description);
+      ogImg?.setAttribute("content", baseOgData[path]?.image || defaultOg.image);
+      ogType?.setAttribute("content", "website");
+      twitterCard?.setAttribute("content", "summary_large_image");
+      twitterTitle?.setAttribute("content", pageTitles[path]);
+      twitterDesc?.setAttribute("content", baseOgData[path]?.description || defaultOg.description);
+      twitterImg?.setAttribute("content", baseOgData[path]?.image || defaultOg.image);
     } else {
       document.title = "The Ink Home — Where Words Feel at Home";
-      description?.setAttribute("content", defaultDescription);
+      description?.setAttribute("content", defaultOg.description);
+      ogTitle?.setAttribute("content", defaultOg.title);
+      ogDesc?.setAttribute("content", defaultOg.description);
+      ogImg?.setAttribute("content", defaultOg.image);
+      ogType?.setAttribute("content", "website");
+      twitterCard?.setAttribute("content", "summary_large_image");
+      twitterTitle?.setAttribute("content", defaultOg.title);
+      twitterDesc?.setAttribute("content", defaultOg.description);
+      twitterImg?.setAttribute("content", defaultOg.image);
     }
   }, [activeStory, path]);
 
@@ -1127,7 +1187,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#08080a] text-white selection:bg-[#c8ff4d] selection:text-black">
-      <a href="#main" className="skip-link">
+      <a href="#main" className="skip-to-content">
         Skip to content
       </a>
       <SiteHeader
@@ -1137,7 +1197,10 @@ export default function App() {
         }}
       />
 
-      <AIAssistant />
+      <AIAssistant 
+  storyContext={activeStory}
+  pageContext={activeStory ? "reading" : path === "/writers" ? "profile" : "browse"}
+/>
 
       <main id="main">
         <AnimatePresence mode="wait">
