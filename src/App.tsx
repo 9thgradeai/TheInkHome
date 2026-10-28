@@ -1135,7 +1135,7 @@ export default function App() {
       );
       ogTitle?.setAttribute("content", `${activeStory.title} | The Ink Home`);
       ogDesc?.setAttribute("content", activeStory.description || "A story from The Ink Home on Medium.");
-      ogImg?.setAttribute("content", story.cover || "/The_Ink_Home.webp");
+       ogImg?.setAttribute("content", activeStory?.cover || "/The_Ink_Home.webp");
       ogType?.setAttribute("content", "article");
       twitterCard?.setAttribute("content", "summary_large_image");
       twitterTitle?.setAttribute("content", `${activeStory.title} | The Ink Home`);
@@ -1143,7 +1143,7 @@ export default function App() {
         "content",
         activeStory.description || "A story from The Ink Home on Medium.",
       );
-      twitterImg?.setAttribute("content", story.cover || "/The_Ink_Home.webp");
+       twitterImg?.setAttribute("content", activeStory?.cover || "/The_Ink_Home.webp");
     } else if (baseDescriptions[path]) {
       document.title = baseDescriptions[path];
       description?.setAttribute("content", baseDescriptions[path]);

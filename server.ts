@@ -6,7 +6,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import compression from "compression";
 import dotenv from "dotenv";
-import { UpstashRedisClient } from "@upstash/redis";
+import { Redis } from "@upstash/redis";
 import { createLogger, format, transports } from "winston";
 import {
   DEFAULT_STORIES,
@@ -15,6 +15,7 @@ import {
   parseMediumRSS,
   djb2Hash,
 } from "./src/lib/api-server";
+import { AIRequestSchema } from "./src/lib/validation";
 
 dotenv.config();
 
@@ -30,18 +31,16 @@ const logger = createLogger({
   ]
 });
 
-// Redis connection health monitoring
-redis.on('error', err => logger.error('Redis connection error', { error: err.message }));
-redis.on('connect', () => logger.info('Redis connected'));
-redis.on('ready', () => logger.info('Redis ready'));
-
-const redis = new UpstashRedisClient({
+const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
+
+
 const AVATAR_CACHE_TTL = 1000 * 60 * 60;
 const avatarCache = new Map<string, { url: string; expiresAt: number }>();
+let directRateLimitedUntil = 0;
 
 let cache: {
   stories: any[];
@@ -162,14 +161,7 @@ function enrichStory(story: any): any {
 }
 
 async function fetchFeedStories(url: string, useProxyFallback = false): Promise<any[]> {
-  // Check Redis for rate limit flag
-  const rateLimited = await redis.get('medium:rate_limit');
-  let directAllowed = false;
-  if (rateLimited === null) {
-    directAllowed = true;
-  }
-
-  if (directAllowed) {
+  if (Date.now() > directRateLimitedUntil) {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
         const response = await fetchWithTimeout(url, 12000);
@@ -178,9 +170,8 @@ async function fetchFeedStories(url: string, useProxyFallback = false): Promise<
           if (parsed.length > 0) return parsed;
         }
         if (response.status === 429 || response.status === 403) {
-          // Set rate limit flag in Redis for 5 minutes
-          await redis.set('medium:rate_limit', '1', { ex: 300 }); // ex in seconds
-          logger.warn(`Medium rate limited ${url}. Setting Redis flag and using proxy fallback.`);
+          directRateLimitedUntil = Date.now() + 5 * 60 * 1000;
+          logger.warn(`Medium rate limited ${url}. Using proxy fallback.`);
           break;
         }
       } catch (e) {
@@ -188,11 +179,8 @@ async function fetchFeedStories(url: string, useProxyFallback = false): Promise<
         await sleep(800 * (attempt + 1));
       }
     }
-  } else {
-    logger.info(`Skipping direct Medium fetch due to Redis rate limit flag for ${url}`);
   }
 
-  // Proxy fallback (unchanged)
   const proxied = await fetchViaCorsProxy(url);
   if (proxied.length > 0) return proxied;
 
@@ -608,19 +596,14 @@ const requestLogger = (req: express.Request, res: express.Response, next: expres
         return res.json({ source: "redis", stories: cached });
       }
 
-      // Fetch fresh stories if not in cache
-      if (cache.stories.length < 10) {
-        try {
-          const freshStories = await syncData();
-          if (freshStories.length > 0) {
-            await redis.set(cacheKey, freshStories, {
-              ex: 300, // 5 minutes TTL
-            });
-          }
+       // Fetch fresh stories if not in cache
+       if (cache.stories.length < 10) {
+         try {
+           await syncData();
          } catch (err) {
            logger.error("Initial data sync failed", { error: err instanceof Error ? err.message : String(err) });
          }
-      }
+       }
 
       // Store in Redis
       if (cache.stories.length > 0) {
