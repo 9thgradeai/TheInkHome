@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 import compression from "compression";
 import dotenv from "dotenv";
 import { UpstashRedisClient } from "@upstash/redis";
+import { createLogger, format, transports } from "winston";
 import {
   DEFAULT_STORIES,
   FALLBACK_ABOUT,
@@ -16,6 +17,23 @@ import {
 } from "./src/lib/api-server";
 
 dotenv.config();
+
+// Winston logger for structured request logging
+const logger = createLogger({
+  level: process.env.NODE_ENV === "production" ? "info" : "debug",
+  format: format.combine(
+    format.timestamp(),
+    format.json()
+  ),
+  transports: [
+    new transports.Console()
+  ]
+});
+
+// Redis connection health monitoring
+redis.on('error', err => logger.error('Redis connection error', { error: err.message }));
+redis.on('connect', () => logger.info('Redis connected'));
+redis.on('ready', () => logger.info('Redis ready'));
 
 const redis = new UpstashRedisClient({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -63,7 +81,6 @@ async function fetchWithTimeout(
 
 const CORS_PROXY = "https://proxy.corsfix.com/?url=";
 const PROXY_ORIGIN = "http://localhost:3000";
-let directRateLimitedUntil = 0;
 
 async function fetchViaCorsProxy(url: string): Promise<any[]> {
   try {
@@ -76,11 +93,11 @@ async function fetchViaCorsProxy(url: string): Promise<any[]> {
       const parsed = parseMediumRSS(await response.text());
       if (parsed.length > 0) return parsed;
     }
-    if (response.status === 429 || response.status === 403) {
-      console.warn(`CORS proxy rate limited for ${url}.`);
-    }
-  } catch (e) {
-    console.warn(`CORS proxy failed for ${url}`);
+     if (response.status === 429 || response.status === 403) {
+       logger.warn(`CORS proxy rate limited for ${url}`);
+     }
+   } catch (e) {
+     logger.warn(`CORS proxy failed for ${url}`, { error: e instanceof Error ? e.message : String(e) });
   }
   return [];
 }
@@ -102,11 +119,11 @@ function loadCacheFromDisk() {
         stories: payload.stories,
         about: payload.about || null,
         lastUpdated: payload.lastUpdated || Date.now(),
-      };
-      console.log(`Loaded ${payload.stories.length} stories from disk cache.`);
-    }
-  } catch (error) {
-    console.warn("Could not load disk cache");
+       };
+       logger.info(`Loaded ${payload.stories.length} stories from disk cache`);
+     }
+   } catch (error) {
+     logger.warn("Could not load disk cache", { error: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -115,7 +132,7 @@ function saveCacheToDisk() {
     fs.mkdirSync(path.dirname(DISK_CACHE_FILE), { recursive: true });
     fs.writeFileSync(DISK_CACHE_FILE, JSON.stringify(cache), "utf8");
   } catch (error) {
-    console.warn("Could not save disk cache");
+    logger.warn("Could not save disk cache", { error: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -145,7 +162,14 @@ function enrichStory(story: any): any {
 }
 
 async function fetchFeedStories(url: string, useProxyFallback = false): Promise<any[]> {
-  if (Date.now() > directRateLimitedUntil) {
+  // Check Redis for rate limit flag
+  const rateLimited = await redis.get('medium:rate_limit');
+  let directAllowed = false;
+  if (rateLimited === null) {
+    directAllowed = true;
+  }
+
+  if (directAllowed) {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
         const response = await fetchWithTimeout(url, 12000);
@@ -154,17 +178,21 @@ async function fetchFeedStories(url: string, useProxyFallback = false): Promise<
           if (parsed.length > 0) return parsed;
         }
         if (response.status === 429 || response.status === 403) {
-          directRateLimitedUntil = Date.now() + 5 * 60 * 1000;
-          console.warn(`Medium rate limited ${url}. Using proxy fallback.`);
+          // Set rate limit flag in Redis for 5 minutes
+          await redis.set('medium:rate_limit', '1', { ex: 300 }); // ex in seconds
+          logger.warn(`Medium rate limited ${url}. Setting Redis flag and using proxy fallback.`);
           break;
         }
       } catch (e) {
-        console.warn(`RSS fetch failed for ${url} (attempt ${attempt + 1})`);
+        logger.warn(`RSS fetch failed for ${url} (attempt ${attempt + 1})`, { error: e instanceof Error ? e.message : String(e) });
         await sleep(800 * (attempt + 1));
       }
     }
+  } else {
+    logger.info(`Skipping direct Medium fetch due to Redis rate limit flag for ${url}`);
   }
 
+  // Proxy fallback (unchanged)
   const proxied = await fetchViaCorsProxy(url);
   if (proxied.length > 0) return proxied;
 
@@ -181,7 +209,7 @@ async function fetchFeedStories(url: string, useProxyFallback = false): Promise<
         }
       }
     } catch (e) {
-      console.warn(`rss2json fallback failed for ${url}`);
+      logger.warn(`rss2json fallback failed for ${url}`, { error: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -261,13 +289,13 @@ function syncData(): Promise<void> {
 }
 
 async function performSync() {
-  console.log("Background sync: Starting data fetch...");
+  logger.info("Background sync: Starting data fetch");
   let fetchedStories: any[] = [];
 
   try {
     fetchedStories = await fetchStoriesWithRetry();
   } catch (e) {
-    console.warn("syncData failed after retries");
+    logger.warn("syncData failed after retries", { error: e instanceof Error ? e.message : String(e) });
   }
 
   const updatedAbout = cache.about
@@ -285,14 +313,14 @@ async function performSync() {
       lastUpdated: Date.now(),
     };
     saveCacheToDisk();
-    console.log(`Background sync completed. Stories cached: ${cache.stories.length}`);
+    logger.info(`Background sync completed. Stories cached: ${cache.stories.length}`);
     return;
   }
 
   if (cache.stories.length > 0) {
     cache = { ...cache, about: updatedAbout };
     saveCacheToDisk();
-    console.warn(`Background sync returned no stories. Keeping ${cache.stories.length} cached stories.`);
+    logger.warn(`Background sync returned no stories. Keeping ${cache.stories.length} cached stories.`);
     return;
   }
 
@@ -301,19 +329,19 @@ async function performSync() {
     about: updatedAbout,
     lastUpdated: Date.now(),
   };
-  console.warn("Background sync returned no stories and no cache exists. Using default stories.");
+  logger.warn("Background sync returned no stories and no cache exists. Using default stories.");
 }
 
 async function serveSPAWithSEO(req: express.Request, res: express.Response, viteInstance?: any) {
   const slug = req.params.slug;
 
-  if (cache.stories.length < 10) {
-    try {
-      await syncData();
-    } catch (e) {
-      console.warn("Initial syncData failed, falling back to defaults");
-    }
-  }
+   if (cache.stories.length < 10) {
+     try {
+       await syncData();
+     } catch (e) {
+       logger.warn("Initial syncData failed, falling back to defaults", { error: e instanceof Error ? e.message : String(e) });
+     }
+   }
 
   const story = slug ? cache.stories.find((s) => s.slug === slug) : undefined;
   const title = story ? `${story.title} — The Ink Home` : "The Ink Home — Where Words Feel at Home";
@@ -414,9 +442,9 @@ async function getMediumAvatarWithCache(username: string): Promise<string> {
         }
       }
     }
-  } catch (err) {
-    console.warn("Tier 1 avatar fetch failed");
-  }
+   } catch (err) {
+     logger.warn("Tier 1 avatar fetch failed", { error: err instanceof Error ? err.message : String(err) });
+   }
 
   try {
     const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(`https://medium.com/feed/@${clean}`)}`;
@@ -431,9 +459,9 @@ async function getMediumAvatarWithCache(username: string): Promise<string> {
         }
       }
     }
-  } catch (err) {
-    console.warn("Tier 2 avatar fetch failed");
-  }
+   } catch (err) {
+     logger.warn("Tier 2 avatar fetch failed", { error: err instanceof Error ? err.message : String(err) });
+   }
 
   try {
     const profileUrl = "https://medium.com/@" + clean;
@@ -450,9 +478,9 @@ async function getMediumAvatarWithCache(username: string): Promise<string> {
         }
       }
     }
-  } catch (err) {
-    console.warn("Tier 3 avatar fetch failed");
-  }
+   } catch (err) {
+     logger.warn("Tier 3 avatar fetch failed", { error: err instanceof Error ? err.message : String(err) });
+   }
 
   try {
     const unavatarUrl = `https://unavatar.io/medium/${clean}`;
@@ -460,10 +488,10 @@ async function getMediumAvatarWithCache(username: string): Promise<string> {
     if (response.ok && response.url && !isPlaceholderUrl(response.url)) {
       avatarCache.set(cacheKey, { url: response.url, expiresAt: Date.now() + AVATAR_CACHE_TTL });
       return response.url;
-    }
-  } catch (err) {
-    console.warn("Tier 4 avatar fetch failed");
-  }
+     }
+   } catch (err) {
+     logger.warn("Tier 4 avatar fetch failed", { error: err instanceof Error ? err.message : String(err) });
+   }
 
   const fallback = premiumFallbacks[cacheKey] || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=304&h=304&q=80";
   avatarCache.set(cacheKey, { url: fallback, expiresAt: Date.now() + AVATAR_CACHE_TTL });
@@ -533,16 +561,22 @@ async function startServer() {
     })
   );
 
-  const requestLogger = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const start = Date.now();
-    res.on("finish", () => {
-      const duration = Date.now() - start;
-      if (process.env.NODE_ENV !== "production") {
-        console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} -> ${res.statusCode} (${duration}ms)`);
-      }
-    });
-    next();
-  };
+const requestLogger = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    if (process.env.NODE_ENV !== "production") {
+      logger.info(`Request completed`, {
+        method: req.method,
+        url: req.originalUrl,
+        status: res.statusCode,
+        duration_ms: duration,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+  next();
+};
   app.use(requestLogger);
 
   const apiLimiter = rateLimit({
@@ -583,9 +617,9 @@ async function startServer() {
               ex: 300, // 5 minutes TTL
             });
           }
-        } catch (err) {
-          console.error("Initial data sync failed");
-        }
+         } catch (err) {
+           logger.error("Initial data sync failed", { error: err instanceof Error ? err.message : String(err) });
+         }
       }
 
       // Store in Redis
@@ -597,10 +631,10 @@ async function startServer() {
 
       res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
       return res.json({ source: "cache", stories: cache.stories });
-    } catch (error) {
-      console.error("Stories API error:", error);
-      res.status(500).json({ error: "Failed to fetch stories" });
-    }
+     } catch (error) {
+       logger.error("Stories API error", { error: error instanceof Error ? error.message : String(error) });
+       res.status(500).json({ error: "Failed to fetch stories" });
+     }
   });
 
   app.get("/api/about", async (req, res) => {
@@ -612,13 +646,13 @@ async function startServer() {
         return res.json({ source: "redis", about: cached });
       }
 
-      if (!cache.about) {
-        try {
-          await syncData();
-        } catch (err) {
-          console.error("Initial about sync failed");
-        }
-      }
+       if (!cache.about) {
+         try {
+           await syncData();
+         } catch (err) {
+           logger.error("Initial about sync failed", { error: err instanceof Error ? err.message : String(err) });
+         }
+       }
 
       const aboutData = cache.about || FALLBACK_ABOUT;
       await redis.set("about:publication", aboutData, {
@@ -627,10 +661,10 @@ async function startServer() {
 
       res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
       return res.json({ source: "cache", about: aboutData });
-    } catch (error) {
-      console.error("About API error:", error);
-      res.status(500).json({ error: "Failed to fetch about data" });
-    }
+     } catch (error) {
+       logger.error("About API error", { error: error instanceof Error ? error.message : String(error) });
+       res.status(500).json({ error: "Failed to fetch about data" });
+     }
   });
 
   app.post("/api/track", (req, res) => {
@@ -641,10 +675,10 @@ async function startServer() {
         payload = JSON.parse(payload);
       } catch (e) {}
     }
-    if (process.env.NODE_ENV !== "production") {
-      const event = req.query.event || "unknown";
-      console.log(`[TELEMETRY] Event: ${event}`);
-    }
+     if (process.env.NODE_ENV !== "production") {
+       const event = req.query.event || "unknown";
+       logger.debug(`Telemetry event: ${event}`);
+     }
     res.status(200).json({ success: true });
   });
 
@@ -668,10 +702,10 @@ async function startServer() {
       if (count > maxRequests) {
         return res.status(429).json({ error: "Too many requests. Please try again later." });
       }
-    } catch (err) {
-      // If Redis fails, allow the request through (no rate limiting fallback)
-      console.warn("Redis rate limit failed, allowing request");
-    }
+     } catch (err) {
+       // If Redis fails, allow the request through (no rate limiting fallback)
+       logger.warn("Redis rate limit failed, allowing request", { error: err instanceof Error ? err.message : String(err) });
+     }
 
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
@@ -705,13 +739,13 @@ async function startServer() {
         signal: AbortSignal.timeout(30000),
       });
 
-      if (!groqRes.ok) {
-        console.error("Groq API error:", groqRes.status);
-        if (groqRes.status === 429) {
-          return res.status(429).json({ error: "AI service rate limit exceeded. Please try again later." });
-        }
-        return res.status(503).json({ error: "AI service temporarily unavailable. Please try again later." });
-      }
+       if (!groqRes.ok) {
+         logger.error("Groq API error", { status: groqRes.status });
+         if (groqRes.status === 429) {
+           return res.status(429).json({ error: "AI service rate limit exceeded. Please try again later." });
+         }
+         return res.status(503).json({ error: "AI service temporarily unavailable. Please try again later." });
+       }
 
       // Stream response back to client
       const { Readable } = await import("stream");
@@ -753,10 +787,10 @@ async function startServer() {
       }
       
       return res.status(200).json({ reply: fullReply });
-    } catch (error) {
-      console.error("AI endpoint error:", error instanceof Error ? error.message : "unknown");
-      return res.status(500).json({ error: "AI assistant temporarily unavailable. Please try again." });
-    }
+     } catch (error) {
+       logger.error("AI endpoint error", { error: error instanceof Error ? error.message : String(error) });
+       return res.status(500).json({ error: "AI assistant temporarily unavailable. Please try again." });
+     }
   });
 
   let vite: any;
@@ -782,19 +816,19 @@ async function startServer() {
     return serveSPAWithSEO(req, res, vite);
   });
 
-  loadCacheFromDisk();
-  syncData().catch((err) => console.warn("Initial background sync failed"));
-  const syncInterval = setInterval(() => {
-    syncData().catch((err) => console.warn("Scheduled background sync failed"));
-  }, 15 * 60 * 1000);
+   loadCacheFromDisk();
+   syncData().catch((err) => logger.warn("Initial background sync failed", { error: err instanceof Error ? err.message : String(err) }));
+   const syncInterval = setInterval(() => {
+     syncData().catch((err) => logger.warn("Scheduled background sync failed", { error: err instanceof Error ? err.message : String(err) }));
+   }, 15 * 60 * 1000);
 
   process.on("SIGTERM", () => {
     clearInterval(syncInterval);
   });
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`The Ink Home server running on http://0.0.0.0:${PORT}`);
-  });
+   app.listen(PORT, "0.0.0.0", () => {
+     logger.info(`The Ink Home server running on http://0.0.0.0:${PORT}`);
+   });
 }
 
 startServer();
