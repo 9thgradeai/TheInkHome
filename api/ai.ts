@@ -61,11 +61,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(429).json({ error: "Too many requests. Please try again later." });
   }
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    console.error("GROQ_API_KEY not configured");
-    return res.status(500).json({ error: "AI service not configured." });
-  }
+const apiKey = process.env.GROQ_API_KEY;
+if (!apiKey) {
+  // Log to serverless function logs (visible in Vercel dashboard)
+  console.error("GROQ_API_KEY not configured – AI assistant cannot function.");
+  return res.status(500).json({ 
+    error: "AI service not configured. Please set the GROQ_API_KEY environment variable in your Vercel project settings." 
+  });
+}
 
   try {
     const validation = AIRequestSchema.safeParse(req.body);
