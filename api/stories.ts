@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import FALLBACK_ABOUT from "../src/data/fallbackAbout";
+import FALLBACK_ABOUT from "../src/data/fallbackAbout.ts";
 
 type Story = {
   title: string;
