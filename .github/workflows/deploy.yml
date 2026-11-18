@@ -1,0 +1,26 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint        # tsc --noEmit
+      - run: npm test            # vitest
+      - run: npm run build       # vite build
+      - name: Deploy to Vercel production
+        run: |
+          npm install -g vercel@latest
+          vercel --prod --token ${{ secrets.VERCEL_TOKEN }}
