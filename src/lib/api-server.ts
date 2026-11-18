@@ -76,13 +76,16 @@ function snippetFrom(content: string): string {
   return `${text.slice(0, 180).trimEnd()}...`;
 }
 
-async function fetchWithTimeout(url: string, timeout = FETCH_TIMEOUT_MS): Promise<Response> {
+async function fetchWithTimeout(url: string, timeout = FETCH_TIMEOUT_MS): Promise<Response | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    return await fetch(url, { signal: controller.signal, headers: { Accept: "application/rss+xml, application/xml, text/xml, */*" } });
-  } finally {
+    const response = await fetch(url, { signal: controller.signal, headers: { Accept: "application/rss+xml, application/xml, text/xml, */*" } });
     clearTimeout(timer);
+    return response;
+  } catch {
+    clearTimeout(timer);
+    return null;
   }
 }
 
@@ -179,6 +182,7 @@ export function transformRSSItems(items: any[]): Story[] {
 
 async function fetchDirect(url: string): Promise<Story[]> {
   const response = await fetchWithTimeout(url);
+  if (!response) return [];
   if (!response.ok) return [];
   const parsed = parseMediumRSS(await response.text());
   return parsed.length > 0 ? parsed : [];
@@ -187,6 +191,7 @@ async function fetchDirect(url: string): Promise<Story[]> {
 async function fetchViaRss2Json(url: string): Promise<Story[]> {
   const endpoint = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
   const response = await fetchWithTimeout(endpoint, RSS2JSON_TIMEOUT_MS);
+  if (!response) return [];
   if (!response.ok) return [];
   const payload = await response.json();
   if (payload?.status !== "ok" || !Array.isArray(payload.items) || payload.items.length === 0) {
