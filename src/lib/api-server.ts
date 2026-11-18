@@ -289,12 +289,15 @@ async function loadFeed(): Promise<CacheEntry> {
   }
 
   if (direct.length > 0) {
-    const tagged = await fetchTagFeeds(direct);
-    return {
-      stories: normalize([...direct, ...tagged]),
-      fetchedAt: Date.now(),
-      source: "medium-rss",
-    };
+    // Return the direct feed immediately so the response is fast. Tag feeds are
+    // fetched asynchronously to enrich the cache for the next request; they must
+    // never block the response (they are slow/external and can time out on
+    // serverless runtimes).
+    void fetchTagFeeds(direct).then((tagged) => {
+      const merged = normalize([...direct, ...tagged]);
+      cache = { stories: merged, fetchedAt: Date.now(), source: "medium-rss" };
+    });
+    return { stories: normalize(direct), fetchedAt: Date.now(), source: "medium-rss" };
   }
 
   try {
