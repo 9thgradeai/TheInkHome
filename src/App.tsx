@@ -6,12 +6,10 @@ import {
   ArrowUpRight,
   Asterisk,
   BookOpen,
-  Check,
-  Clock,
   Feather,
-  Mail,
   PenLine,
   Quote,
+  RefreshCw,
   Search,
   Sparkles,
   Users,
@@ -21,22 +19,20 @@ import SiteFooter from "./components/SiteFooter";
 import ReadingPage from "./components/ReadingPage";
 import EnhancedHero from "./components/EnhancedHero";
 import { StoryCard } from "./components/StoryCard";
-import StoryCover from "./components/StoryCover";
 import AuthorAvatar from "./components/AuthorAvatar";
-import { FALLBACK_STORIES } from "./data/fallbackStories";
 import { FALLBACK_ABOUT } from "./data/fallbackAbout";
 import { Story } from "./types";
-import { formatDate, readingTime, stripHtml, topCategories } from "./lib/format";
+import { stripHtml, topCategories } from "./lib/format";
 import StoriesPage from "./pages/StoriesPage";
 import WritersPage from "./pages/WritersPage";
 import AboutPage from "./pages/AboutPage";
 import AIAssistant from "./components/AIAssistant";
-import { getLikesCount } from "./lib/interaction";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
-const STORY_CACHE_KEY = "the-ink-home:stories:v4";
-const STORY_CACHE_TIME = "the-ink-home:stories:v4:time";
+const STORY_CACHE_KEY = "the-ink-home:stories:v5";
+const STORY_CACHE_TIME = "the-ink-home:stories:v5:time";
 const CACHE_TTL = 1000 * 60 * 20;
+const PUBLICATION_URL = "https://medium.com/the-ink-home";
 
 const DEFAULT_TOPICS = [
   "Writing",
@@ -139,225 +135,26 @@ function Marquee({ topics }: { topics: string[] }) {
   );
 }
 
-function Hero({
-  featured,
-  storyCount,
-  contributorCount,
-  loading,
-  onOpen,
-  onNavigate,
-}: {
-  featured?: Story;
-  storyCount: number;
-  contributorCount: number;
-  loading: boolean;
-  onOpen: (story: Story) => void;
-  onNavigate: (path: string) => void;
-}) {
-  return (
-    <section className="relative overflow-hidden">
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 60% 50% at 15% 0%, rgba(200,255,77,0.10), transparent 62%), radial-gradient(ellipse 45% 55% at 95% 10%, rgba(167,139,250,0.10), transparent 65%)",
-        }}
-      />
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.035]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-          backgroundSize: "72px 72px",
-          maskImage: "radial-gradient(ellipse at 50% 30%, black, transparent 78%)",
-        }}
-      />
-
-      <div className="relative mx-auto max-w-7xl px-4 pb-16 pt-28 sm:px-8 sm:pb-20 sm:pt-36">
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: EASE }}
-          className="flex flex-wrap items-center gap-3"
-        >
-          <span className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.22em] text-white/55">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#c8ff4d] opacity-60" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#c8ff4d]" />
-            </span>
-            A Medium publication · Words feel at home
-          </span>
-          <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/25">
-            {loading ? "Syncing with Medium…" : `${storyCount} latest stories`}
-          </span>
-        </motion.div>
-
-        <div className="mt-7 grid items-center gap-10 lg:grid-cols-[1.02fr_0.98fr] lg:gap-14">
-          <div>
-            <motion.h1
-              initial={{ opacity: 0, y: 22 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.85, delay: 0.08, ease: EASE }}
-              className="font-display text-[clamp(2.7rem,7.2vw,5.4rem)] font-black leading-[0.92] tracking-[-0.05em] text-white"
-            >
-              Where words feel{" "}
-              <span className="relative inline-block italic text-[#c8ff4d]">
-                at home
-                <svg
-                  className="absolute -bottom-1 left-0 w-full"
-                  viewBox="0 0 200 12"
-                  fill="none"
-                  preserveAspectRatio="none"
-                >
-                  <path
-                    d="M2 9C40 3 80 3 110 6C140 9 170 8 198 4"
-                    stroke="#c8ff4d"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </span>.
-            </motion.h1>
-
-            <motion.p
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.18, ease: EASE }}
-              className="mt-6 max-w-xl text-[15px] leading-relaxed text-white/55 sm:text-base"
-            >
-              An independent publication of essays on technology, culture, creativity and the quiet parts of
-              being human. Thirty to fifty new stories, gathered straight from our Medium home.
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.28, ease: EASE }}
-              className="mt-8 flex flex-wrap items-center gap-3"
-            >
-              <button
-                onClick={() => onNavigate("/#latest")}
-                className="group flex items-center gap-2 rounded-full bg-white px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-[#c8ff4d]"
-              >
-                Read the latest
-                <ArrowDownRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:translate-y-0.5" />
-              </button>
-              <button
-                onClick={() => onNavigate("/#writers")}
-                className="flex items-center gap-2 rounded-full border border-white/15 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-white/70 transition-colors hover:border-white/40 hover:text-white"
-              >
-                Meet the writers
-                <ArrowUpRight className="h-4 w-4" />
-              </button>
-            </motion.div>
-
-            <motion.dl
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.9, delay: 0.45 }}
-              className="mt-10 grid max-w-lg grid-cols-3 gap-6 border-t border-white/10 pt-6"
-            >
-              {[
-                [String(storyCount).padStart(2, "0"), "Latest stories"],
-                [String(contributorCount).padStart(2, "0"), "Contributors"],
-                ["Weekly", "New dispatches"],
-              ].map(([value, label]) => (
-                <div key={label}>
-                  <dt className="font-display text-2xl font-bold text-white sm:text-3xl">{value}</dt>
-                  <dd className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-white/35">{label}</dd>
-                </div>
-              ))}
-            </motion.dl>
-          </div>
-
-          {featured && (
-            <motion.button
-              initial={{ opacity: 0, y: 30, rotate: 1.5 }}
-              animate={{ opacity: 1, y: 0, rotate: 0 }}
-              transition={{ duration: 0.9, delay: 0.2, ease: EASE }}
-              whileHover={{ y: -6, rotate: -0.4 }}
-              onClick={() => onOpen(featured)}
-              className="group relative block w-full text-left"
-            >
-              <div
-                className="pointer-events-none absolute -inset-8 rounded-full opacity-40 blur-3xl"
-                style={{ background: "radial-gradient(circle, rgba(200,255,77,0.22), transparent 65%)" }}
-              />
-              <div className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl border border-white/15 bg-[#101114] shadow-[0_40px_100px_-40px_rgba(0,0,0,0.95)] sm:aspect-[5/4] lg:aspect-[4/4.6]">
-                <StoryCover
-                  src={featured.cover}
-                  alt={featured.title}
-                  seed={featured.title}
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                  priority
-                  className="transition-transform duration-[900ms] group-hover:scale-[1.045]"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-black/10" />
-                <div className="absolute inset-x-0 top-0 flex items-center justify-between p-5">
-                  <span className="flex items-center gap-2 rounded-full border border-[#c8ff4d]/30 bg-black/50 px-3 py-1.5 font-mono text-[8px] uppercase tracking-[0.2em] text-[#c8ff4d] backdrop-blur">
-                    <Sparkles className="h-3 w-3" /> Featured
-                  </span>
-                  <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">
-                    {formatDate(featured.pubDate, "short")}
-                  </span>
-                </div>
-                <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
-                  <div className="flex flex-wrap gap-1.5">
-                    {featured.categories.slice(0, 2).map((category) => (
-                      <span
-                        key={category}
-                        className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 font-mono text-[8px] uppercase tracking-[0.14em] text-white/80 backdrop-blur"
-                      >
-                        {category}
-                      </span>
-                    ))}
-                  </div>
-                  <h2 className="mt-3 font-display text-2xl font-bold leading-[1.05] tracking-tight text-white sm:text-3xl">
-                    {featured.title}
-                  </h2>
-                  <p className="mt-2 line-clamp-2 max-w-lg text-[12.5px] leading-relaxed text-white/55">
-                    {stripHtml(featured.description)}
-                  </p>
-                  <div className="mt-4 flex items-center justify-between border-t border-white/15 pt-3">
-                    <span className="flex items-center gap-2">
-                      <AuthorAvatar
-                        name={featured.author}
-                        src={featured.avatar}
-                        className="h-6 w-6 rounded-full text-[8px]"
-                      />
-                      <span className="text-[11px] text-white/70">{featured.author}</span>
-                    </span>
-                    <span className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-white/45">
-                      <Clock className="h-3 w-3" /> {readingTime(featured)} min
-                      <ArrowUpRight className="ml-1 h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </motion.button>
-          )}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function LatestStories({
   stories,
   loading,
+  error,
   query,
   category,
   onQuery,
   onCategory,
   onOpen,
+  onRetry,
 }: {
   stories: Story[];
   loading: boolean;
+  error: boolean;
   query: string;
   category: string;
   onQuery: (value: string) => void;
   onCategory: (value: string) => void;
   onOpen: (story: Story) => void;
+  onRetry: () => void;
 }) {
   const [visible, setVisible] = useState(30);
 
@@ -395,9 +192,9 @@ function LatestStories({
             to the original on Medium.
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2 font-mono text-[9px] uppercase tracking-[0.16em] text-white/30">
-          <span className={`h-1.5 w-1.5 rounded-full ${loading ? "animate-pulse bg-white/50" : "bg-[#c8ff4d]"}`} />
-          {loading ? "Syncing…" : `${filtered.length} stories`}
+        <div className="flex shrink-0 items-center gap-2 font-mono text-[9px] uppercase tracking-[0.16em] text-white/50">
+          <span className={`h-1.5 w-1.5 rounded-full ${loading ? "animate-pulse bg-white/50" : error ? "bg-red-400" : "bg-[#c8ff4d]"}`} />
+          {loading ? "Syncing…" : error ? "Offline" : `${filtered.length} stories`}
         </div>
       </Reveal>
 
@@ -441,15 +238,56 @@ function LatestStories({
         </div>
       </Reveal>
 
-      {filtered.length === 0 ? (
+      {loading && stories.length === 0 ? (
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-live="polite">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="animate-pulse overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c0f]">
+              <div className="aspect-[16/10] w-full bg-white/[0.05]" />
+              <div className="space-y-3 p-5">
+                <div className="h-3 w-20 rounded bg-white/[0.06]" />
+                <div className="h-5 w-4/5 rounded bg-white/[0.08]" />
+                <div className="h-3 w-full rounded bg-white/[0.05]" />
+                <div className="h-3 w-2/3 rounded bg-white/[0.05]" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : error && stories.length === 0 ? (
+        <div
+          role="alert"
+          className="mt-12 flex flex-col items-center gap-4 rounded-2xl border border-dashed border-white/15 px-6 py-16 text-center"
+        >
+          <p className="font-display text-2xl font-bold text-white">We couldn't reach the publication.</p>
+          <p className="max-w-md text-sm leading-relaxed text-white/60">
+            The stories live on Medium and are synced from their feed. Check your connection and try again — the
+            archive is always waiting.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={onRetry}
+              className="flex items-center gap-2 rounded-full bg-white px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-[#c8ff4d]"
+            >
+              <RefreshCw className="h-4 w-4" /> Try again
+            </button>
+            <a
+              href={PUBLICATION_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-full border border-white/15 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-white/70 transition-colors hover:border-white/40 hover:text-white"
+            >
+              Open on Medium <ArrowUpRight className="h-4 w-4" />
+            </a>
+          </div>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="mt-12 flex flex-col items-center gap-4 rounded-2xl border border-dashed border-white/15 py-16 text-center">
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">No stories match that search</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/60">No stories match that search</p>
           <button
             onClick={() => {
               onQuery("");
               onCategory("All");
             }}
-            className="rounded-full border border-white/15 px-4 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-white/60 hover:text-white"
+            className="rounded-full border border-white/15 px-4 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-white/70 hover:text-white"
           >
             Reset filters
           </button>
@@ -807,14 +645,12 @@ function AboutSection({
 }
 
 function SubscribeSection({ onNavigate }: { onNavigate: (path: string) => void }) {
-  const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
-
   return (
     <section id="subscribe" className="scroll-mt-24 px-4 py-20 sm:px-8 sm:py-24">
       <Reveal className="mx-auto max-w-7xl">
         <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0b0c0f] px-6 py-14 sm:px-12 sm:py-20">
           <div
+            aria-hidden="true"
             className="pointer-events-none absolute inset-0 opacity-80"
             style={{
               background:
@@ -823,73 +659,55 @@ function SubscribeSection({ onNavigate }: { onNavigate: (path: string) => void }
           />
           <div className="relative grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
             <div>
-              <span className="font-mono text-[9px] uppercase tracking-[0.24em] text-white/40">The Sunday dispatch</span>
+              <span className="font-mono text-[9px] uppercase tracking-[0.24em] text-white/60">Stay in the loop</span>
               <h2 className="mt-4 max-w-2xl font-display text-4xl font-black leading-[0.96] tracking-[-0.035em] text-white sm:text-6xl">
-                One letter. Every Sunday. No noise.
+                New stories land here first. Follow along.
               </h2>
-              <p className="mt-5 max-w-xl text-sm leading-relaxed text-white/50">
-                The week's best Ink Home stories, a note from the editors, and one idea worth carrying into
-                Monday.
+              <p className="mt-5 max-w-xl text-sm leading-relaxed text-white/65">
+                Every essay we publish goes out on Medium. Follow The Ink Home and each new piece arrives in your
+                reading feed — no inbox required, no algorithm tax.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <button
                   onClick={() => onNavigate("/#latest")}
-                  className="rounded-full border border-white/15 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-white/70 transition-colors hover:border-white/40 hover:text-white"
+                  className="rounded-full border border-white/25 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-white/85 transition-colors hover:border-white/60 hover:text-white"
                 >
-                  Read this week's stories
+                  Browse the archive
                 </button>
-                <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-white/25">
-                  Free · Unsubscribe anytime
+                <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-white/50">
+                  Free · Always open access
                 </span>
               </div>
             </div>
 
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (!email.trim()) return;
-                setSubscribed(true);
-                setEmail("");
-                window.setTimeout(() => setSubscribed(false), 2800);
-              }}
-              className="rounded-2xl border border-white/10 bg-black/30 p-5 backdrop-blur"
-            >
-              <label
-                htmlFor="dispatch-email"
-                className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/40"
-              >
-                Your email
-              </label>
-              <div className="mt-2 flex items-center gap-2 border-b border-white/15 pb-2 focus-within:border-white/40">
-                <Mail className="h-4 w-4 shrink-0 text-white/30" />
-                <input
-                  id="dispatch-email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@studio.com"
-                  className="w-full bg-transparent text-sm text-white placeholder:text-white/25 focus:outline-none"
-                />
-              </div>
-              <button
-                type="submit"
+            <div className="rounded-2xl border border-white/15 bg-black/40 p-6 backdrop-blur">
+              <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/60">
+                Medium publication
+              </span>
+              <p className="mt-3 text-sm leading-relaxed text-white/70">
+                Follow <span className="font-semibold text-white">The Ink Home</span> to get every new story in
+                your Medium feed, and to help other readers find us.
+              </p>
+              <a
+                href={`${PUBLICATION_URL}/subscribe`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#c8ff4d] px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-transform hover:-translate-y-0.5"
               >
-                {subscribed ? (
-                  <>
-                    You're on the list <Check className="h-4 w-4" />
-                  </>
-                ) : (
-                  <>
-                    Join the dispatch <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </button>
-              <p className="mt-3 text-center font-mono text-[8px] uppercase tracking-[0.14em] text-white/25">
-                Sent from the editors, not a marketing bot
+                Follow on Medium <ArrowUpRight className="h-4 w-4" />
+              </a>
+              <a
+                href={PUBLICATION_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-white/20 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-white/80 transition-colors hover:border-white/50 hover:text-white"
+              >
+                Visit the publication <ArrowRight className="h-4 w-4" />
+              </a>
+              <p className="mt-4 text-center font-mono text-[8px] uppercase tracking-[0.14em] text-white/50">
+                Published by The Ink Home editors
               </p>
-            </form>
+            </div>
           </div>
         </div>
       </Reveal>
@@ -941,9 +759,11 @@ function StoryNotFound({ loading, onNavigate }: { loading: boolean; onNavigate: 
 export default function App() {
   const [path, setPath] = useCurrentPath();
   const [scrollTarget, setScrollTarget] = useState<string | null>(null);
-  const [stories, setStories] = useState<Story[]>(FALLBACK_STORIES);
+  const [stories, setStories] = useState<Story[]>([]);
   const [about, setAbout] = useState<AboutData>(FALLBACK_ABOUT as AboutData);
   const [loading, setLoading] = useState(true);
+  const [storyError, setStoryError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [live, setLive] = useState(false);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
@@ -994,14 +814,16 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
+    setStoryError(false);
+    setLoading(true);
 
     try {
       const cachedAt = Number(localStorage.getItem(STORY_CACHE_TIME) || 0);
       const raw = localStorage.getItem(STORY_CACHE_KEY);
       if (raw && Date.now() - cachedAt < CACHE_TTL) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length >= 10) {
-          setStories(parsed.slice(0, 50));
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setStories(parsed.slice(0, 60));
           setLive(true);
           setLoading(false);
         }
@@ -1024,11 +846,13 @@ export default function App() {
 
         const storyPayload = await storiesResponse.json();
         const incoming: Story[] = Array.isArray(storyPayload?.stories) ? storyPayload.stories : [];
+        if (incoming.length === 0) throw new Error("Stories feed returned no stories");
 
-        if (!cancelled && incoming.length >= 10) {
-          const trimmed = incoming.slice(0, 50);
+        if (!cancelled) {
+          const trimmed = incoming.slice(0, 60);
           setStories(trimmed);
           setLive(true);
+          setStoryError(false);
           try {
             localStorage.setItem(STORY_CACHE_KEY, JSON.stringify(trimmed));
             localStorage.setItem(STORY_CACHE_TIME, String(Date.now()));
@@ -1049,7 +873,7 @@ export default function App() {
           }
         }
       } catch {
-        /* keep fallback */
+        if (!cancelled) setStoryError(true);
       } finally {
         window.clearTimeout(timer);
         if (!cancelled) setLoading(false);
@@ -1063,7 +887,7 @@ export default function App() {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, []);
+  }, [reloadKey]);
 
   const topics = useMemo(() => {
     const derived = topCategories(stories, 11);
@@ -1106,22 +930,22 @@ export default function App() {
       "/": {
         title: "The Ink Home",
         description: "An independent Medium publication of essays on technology, culture, creativity, relationships and the quiet parts of being human.",
-        image: "/The_Ink_Home.webp",
+        image: "/assets/The_Ink_Home.webp",
       },
       "/stories": {
         title: "Stories | The Ink Home",
         description: "An independent Medium publication of essays on technology, culture, creativity, relationships and the quiet parts of being human.",
-        image: "/The_Ink_Home.webp",
+        image: "/assets/The_Ink_Home.webp",
       },
       "/writers": {
         title: "Writers | The Ink Home",
         description: "Meet the writers and editors of The Ink Home publication.",
-        image: "/The_Ink_Home.webp",
+        image: "/assets/The_Ink_Home.webp",
       },
       "/about": {
         title: "About | The Ink Home",
         description: "Learn about The Ink Home publication, our editors, submission guidelines, and writing specs.",
-        image: "/The_Ink_Home.webp",
+        image: "/assets/The_Ink_Home.webp",
       },
     };
 
@@ -1135,7 +959,7 @@ export default function App() {
       );
       ogTitle?.setAttribute("content", `${activeStory.title} | The Ink Home`);
       ogDesc?.setAttribute("content", activeStory.description || "A story from The Ink Home on Medium.");
-       ogImg?.setAttribute("content", activeStory?.cover || "/The_Ink_Home.webp");
+       ogImg?.setAttribute("content", activeStory?.cover || "/assets/The_Ink_Home.webp");
       ogType?.setAttribute("content", "article");
       twitterCard?.setAttribute("content", "summary_large_image");
       twitterTitle?.setAttribute("content", `${activeStory.title} | The Ink Home`);
@@ -1143,7 +967,7 @@ export default function App() {
         "content",
         activeStory.description || "A story from The Ink Home on Medium.",
       );
-       twitterImg?.setAttribute("content", activeStory?.cover || "/The_Ink_Home.webp");
+       twitterImg?.setAttribute("content", activeStory?.cover || "/assets/The_Ink_Home.webp");
     } else if (baseDescriptions[path]) {
       document.title = baseDescriptions[path];
       description?.setAttribute("content", baseDescriptions[path]);
@@ -1261,11 +1085,13 @@ export default function App() {
                 <LatestStories
                   stories={stories}
                   loading={loading && !live}
+                  error={storyError}
                   query={query}
                   category={category}
                   onQuery={setQuery}
                   onCategory={setCategory}
                   onOpen={openStory}
+                  onRetry={() => setReloadKey((key) => key + 1)}
                 />
 
                 <EditorsSection editors={about.editors} stories={stories} />

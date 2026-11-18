@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { ArrowDownRight, ArrowUpRight, Sparkles, BookOpen } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BookOpen } from "lucide-react";
 import { Suspense, lazy } from "react";
 
 const InkHomeCanvas = lazy(() => import("./InkHomeCanvas"));
@@ -69,7 +69,7 @@ export default function EnhancedHero({ storyCount, contributorCount, loading, on
                   <div className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#c8ff4d]" />
                 </div>
                 <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/60">
-                  {loading ? "Syncing..." : "500+ Stories"}
+                  {loading ? "Syncing..." : `${storyCount} Stories`}
                 </span>
               </div>
             </motion.div>

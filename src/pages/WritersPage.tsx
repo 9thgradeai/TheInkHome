@@ -1,9 +1,8 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { motion } from "motion/react";
-import { ArrowRight, BookOpen, PenLine, Users } from "lucide-react";
+import { ArrowRight, BookOpen, Users } from "lucide-react";
 import AuthorAvatar from "../components/AuthorAvatar";
 import { Story } from "../types";
-import { formatDate, readingTime } from "../lib/format";
 
 interface Person {
   name: string;
@@ -33,7 +32,6 @@ function Reveal({
   children: React.ReactNode;
   delay?: number;
   className?: string;
-  key?: React.Key;
 }) {
   return (
     <motion.div
@@ -42,7 +40,6 @@ function Reveal({
       viewport={{ once: true, margin: "-80px" }}
       transition={{ duration: 0.7, delay, ease: EASE }}
       className={className}
-      key={children as unknown as React.Key}
     >
       {children}
     </motion.div>
@@ -90,39 +87,6 @@ export default function WritersPage({
   return (
     <section className="min-h-screen bg-[#08080a] text-white">
 
-      <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#08080a]/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-8">
-          <button
-            onClick={() => {}}
-            className="flex items-center gap-3 text-left"
-            aria-label="The Ink Home — home"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-white">
-              <PenLine className="h-4 w-4" />
-            </div>
-            <div className="flex flex-col items-start leading-none pl-8">
-              <span className="font-display text-lg font-extrabold tracking-widest uppercase text-white">
-                Writers & Editors
-              </span>
-              <span className="text-[9px] font-mono tracking-[0.25em] text-white/45 uppercase mt-0.5">
-                Writers & Editors
-              </span>
-            </div>
-          </button>
-          <div className="hidden md:flex items-center gap-3">
-            <a
-              href="https://medium.com/the-ink-home"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-[#c8ff4d]"
-            >
-              Read on Medium
-              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-            </a>
-          </div>
-        </div>
-      </header>
-
       <main className="pt-24 px-4 pb-32 sm:px-8 sm:pb-40">
         <div className="mx-auto max-w-7xl">
           <div className="mb-14">
@@ -134,11 +98,11 @@ export default function WritersPage({
                 <h1 className="mt-4 max-w-2xl font-display text-4xl font-black tracking-[-0.03em] text-white sm:text-6xl">
                   Every voice in the room.
                 </h1>
-                <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/45">
+                <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/65">
                   Essayists, researchers, engineers and storytellers who keep storytelling alive. Select a writer to see their work.
                 </p>
               </div>
-              <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.18em] text-white/30">
+              <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.18em] text-white/50">
                 {editors.length + contributors.length} contributors
               </span>
             </div>
@@ -262,11 +226,11 @@ export default function WritersPage({
                         </span>
                         <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/20 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white/70" />
                       </span>
-                      <span className="mt-0.5 block truncate text-[10px] text-white/35">
+                      <span className="mt-0.5 block truncate text-[10px] text-white/50">
                         {person.role}
                       </span>
                       {person.bio && (
-                        <span className="mt-2 line-clamp-2 block text-[11px] leading-relaxed text-white/30">
+                        <span className="mt-2 line-clamp-2 block text-[11px] leading-relaxed text-white/45">
                           {person.bio}
                         </span>
                       )}

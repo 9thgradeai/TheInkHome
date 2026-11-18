@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { Story } from "../types";
 import { formatDate, readingTime } from "../lib/format";
-import { getLikesCount } from "../lib/interaction";
 import StoryCover from "./StoryCover";
 import AuthorAvatar from "./AuthorAvatar";
 import { StoryCard } from "./StoryCard";
@@ -211,6 +210,8 @@ export default function ReadingPage({
 
           <div className="mt-8 flex flex-wrap items-center gap-2 border-y border-white/10 py-3">
             <button
+              type="button"
+              aria-pressed={liked}
               onClick={() => onToggleLike(story.slug)}
               className={`flex items-center gap-2 rounded-full border px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] transition-colors ${
                 liked
@@ -219,9 +220,11 @@ export default function ReadingPage({
               }`}
             >
               <Heart className={`h-3.5 w-3.5 ${liked ? "fill-current" : ""}`} />
-              {getLikesCount(story.title, liked)}
+              {liked ? "Liked" : "Like"}
             </button>
             <button
+              type="button"
+              aria-pressed={saved}
               onClick={() => onToggleSave(story.slug)}
               className={`flex items-center gap-2 rounded-full border px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] transition-colors ${
                 saved
@@ -233,6 +236,7 @@ export default function ReadingPage({
               {saved ? "Saved" : "Save"}
             </button>
             <button
+              type="button"
               onClick={share}
               className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-white/50 transition-colors hover:border-white/30 hover:text-white"
             >

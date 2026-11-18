@@ -1,8 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
 import { ArrowUpRight, BookOpen, Quote, Sparkles } from "lucide-react";
-import { Logo } from "../components/Logo";
-import { Story } from "../types";
 
 interface AboutData {
   description: string;
@@ -38,29 +36,6 @@ export default function AboutPage({
 }: AboutPageProps) {
   return (
     <section className="min-h-screen bg-[#08080a] text-white">
-
-      <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#08080a]/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-8">
-          <button
-            onClick={() => onNavigate("/")}
-            className="flex items-center gap-3 text-left"
-            aria-label="The Ink Home — home"
-          >
-            <Logo size={34} textColor="text-white" />
-          </button>
-          <div className="hidden md:flex items-center gap-3">
-            <a
-              href="https://medium.com/the-ink-home"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-[#c8ff4d]"
-            >
-              Read on Medium
-              <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-            </a>
-          </div>
-        </div>
-      </header>
 
       <main className="pt-32 px-4 pb-40 sm:px-8 sm:pb-48">
         <div className="mx-auto max-w-7xl">
@@ -128,8 +103,8 @@ export default function AboutPage({
                 {[
                   [String(storyCount), "Stories on site"],
                   [String(contributorCount), "Contributors"],
-                  ["10 min", "Refresh cadence"],
-                  ["2026", "Vol. 07"],
+                  ["~30 min", "Refresh cadence"],
+                  ["2026", "Volume 07"],
                 ].map(([value, label]) => (
                   <div key={label} className="bg-[#0a0b0d] px-5 py-6 sm:px-6 sm:py-7">
                     <div className="font-display text-3xl font-bold text-white sm:text-4xl">

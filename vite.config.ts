@@ -31,7 +31,7 @@ export default defineConfig(() => {
             'ui-vendor': ['lucide-react'],
           },
         },
-        external: ['express', 'helmet', 'express-rate-limit', 'compression', '@upstash/redis'],
+        external: ['express', 'helmet', 'express-rate-limit', 'compression'],
       },
       chunkSizeWarningLimit: 1000,
       sourcemap: false,

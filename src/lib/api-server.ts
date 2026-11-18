@@ -1,432 +1,355 @@
-import { Story } from "../types";
+import type { Story } from "../types.ts";
 
-export const DEFAULT_STORIES: Story[] = [
-  {
-    title: "The Spatial Medium: Redefining Digital Architecture",
-    link: "https://medium.com/the-ink-home/spatial-medium-redefining-digital-architecture",
-    author: "Elena Rostov",
-    role: "Editor-in-Chief",
-    pubDate: "Sun, 31 May 2026 10:00:00 GMT",
-    categories: ["Architecture", "Digital Art", "Design"],
-    description: "An inquiry into the collapse of screen borders, tracing how digital typography transitions from absolute grid references to floating spatial objects in three-dimensional environments.",
-    content: "<p>The screen is no longer a surface. It is a portal with physical, kinetic depth. As we transition from flat editorial spaces to volumetric layouts, we are forced to rethink typography, paragraph spacing, and user eye tracking. In this first major thesis from the Spatial Design lab at The Ink Home, we trace the transition from paper to pixels, and finally, into multi-dimensional kinetic canvases.</p><figure><img src=\"https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80\" /></figure><p>The concept of digital printing elements floating in depth allows editors to establish physical visual hierarchy. Larger headers can sit 20px closer to the camera, creating natural parallax during scroll.</p>",
-    cover: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
-    slug: "spatial-medium-redefining-digital-architecture",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
-  },
-  {
-    title: "Aesthesis and the Algorithmic Composer",
-    link: "https://medium.com/the-ink-home/aesthesis-algorithmic-composer",
-    author: "Devon Vance",
-    role: "AI Creative Lead",
-    pubDate: "Fri, 29 May 2026 14:15:00 GMT",
-    categories: ["Artificial Intelligence", "Sound", "Philosophy"],
-    description: "How neural networks are rebuilding the acoustic syntax of modern interactive journalism, generating ambient soundtracks keyed directly to reading velocity.",
-    content: "<p>What does text sound like when it is read? Not spoken, but felt. At The Ink Home, we've developed a generative ambient soundscape system that dynamically syncs background tones with the user's reading position. High-density words trigger subtle high-frequency resonances, while narrative gaps bring in deep drone base hums.</p><figure><img src=\"https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?auto=format&fit=crop&w=1200&q=80\" /></figure><p>This is the future of immersive editorial. The browser serves not just as a visual reader, but as a sensory conductor.</p>",
-    cover: "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?auto=format&fit=crop&w=1200&q=80",
-    slug: "aesthesis-algorithmic-composer",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"
-  },
-  {
-    title: "Liquid Typography: The Kinetic Textures of Midnight",
-    link: "https://medium.com/the-ink-home/liquid-typography-kinetic-textures",
-    author: "Sophia Sterling",
-    role: "Senior Graphic Editor",
-    pubDate: "Wed, 27 May 2026 09:30:00 GMT",
-    categories: ["Typography", "Motion Design", "Creative Coding"],
-    description: "Plunging deep into viscous web text layouts. We explore the implementation of fluid shaders that bend, float, and flow dynamically as the cursor collides with headlines.",
-    content: "<p>Static fonts are dead. When we look at a screen, we expect characters to display organic behaviors like tension and viscosity. Liquid Typography examines WebGL-based typeface meshes that adapt to mouse momentum, splitting and re-joining with gorgeous metallic finishes.</p><figure><img src=\"https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=1200&q=80\" /></figure><p>The tactile weight of these digital glyphs creates physical engagement, transforming reading from a passive habit into an active somatic experience.</p>",
-    cover: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=1200&q=80",
-    slug: "liquid-typography-kinetic-textures",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80"
-  },
-  {
-    title: "The Ink Archive: Tracing the Philosophy of Cyber-Scribes",
-    link: "https://medium.com/the-ink-home/philosophy-of-cyber-scribes",
-    author: "Elena Rostov",
-    role: "Editor-in-Chief",
-    pubDate: "Mon, 25 May 2026 18:20:00 GMT",
-    categories: ["Philosophy", "Literature", "Cyberculture"],
-    description: "An archival study of electronic literary clubs, examining how the ink on our hands became code in the browser, and the collective spirit of the digital publication.",
-    content: "<p>The ink of the modern age does not stain fingers; it alters screens. In tracing the lineage from printed zines to the Medium feed, the cybernetic publishing space retains its punk roots. This long-form article details our collective's mission to preserve raw editorial control amidst algorithmic feed curation.</p><figure><img src=\"https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=1200&q=80\" /></figure><p>By transforming Medium metadata into spatial coordinates, we free the articles from standardized corporate grids into infinite editorial solar systems.</p>",
-    cover: "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=1200&q=80",
-    slug: "philosophy-of-cyber-scribes",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
-  },
-  {
-    title: "Metadimensional Interfaces: Beyond the Desktop Metaphor",
-    link: "https://medium.com/the-ink-home/metadimensional-interfaces-beyond-desktop",
-    author: "Marcus Chen",
-    role: "Interaction Director",
-    pubDate: "Thu, 21 May 2026 11:10:00 GMT",
-    categories: ["UI/UX", "Future", "Science Fiction"],
-    description: "A prospective review of zero-gravity dashboards, spatial data stacks, and multi-layered typography systems designed for neural-link and depth interfaces.",
-    content: "<p>For forty years, human-computer interaction has lived in the flat confines of cardboard-desktop file systems. But what happens when interfaces occupy floating depths? We present a speculative UI suite that arranges ideas in atomic orbits, letting stories interact with one another based on content tags.</p><figure><img src=\"https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80\" /></figure><p>In the spatial web, context is visual distance. High relevance brings items closer, while divergent files drift to the horizons.</p>",
-    cover: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80",
-    slug: "metadimensional-interfaces-beyond-desktop",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80"
-  }
+/**
+ * Server-side content pipeline for The Ink Home.
+ *
+ * Single source of truth for fetching, parsing and caching the publication's
+ * Medium RSS feed. Shared by the Express dev/prod server (`server.ts`) and the
+ * Vercel serverless functions (`api/*`).
+ *
+ * NOTE: every relative import in this module graph MUST carry an explicit
+ * `.ts` extension. The Vercel Node runtime loads `api/*.ts` as native ESM
+ * (Node 24 type-stripping), which does not perform extension resolution.
+ */
+
+export const PUBLICATION_FEED = "https://medium.com/feed/the-ink-home";
+export const MAX_STORIES = 50;
+
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const FETCH_TIMEOUT_MS = 12000;
+const RSS2JSON_TIMEOUT_MS = 12000;
+const TAG_FEED_TIMEOUT_MS = 15000;
+const MAX_TAG_FEEDS = 10;
+const TAG_CONCURRENCY = 4;
+const TAG_DELAY_MS = 150;
+
+type CacheEntry = { stories: Story[]; fetchedAt: number; source: string };
+
+let cache: CacheEntry | null = null;
+let inFlight: Promise<CacheEntry> | null = null;
+
+const PRESET_COVERS = [
+  "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80",
 ];
 
-export const FALLBACK_ABOUT = {
-  description: "The Ink Home is a place where words feel at home. Here, we share stories that explore life, writing, technology, productivity, relationships and mental health. Every piece is a reflection, a lesson, or a moment meant to inspire, connect, and spark thought.",
-  officialWebsite: "https://theinkhome.live/",
-  editors: [
-    {
-      name: "Farhan Kabir",
-      username: "farhankabir133",
-      role: "AI Engineer | Full-Stack Dev",
-      bio: "A technology essayist, digital artisan, and design researcher exploring interfaces and spatial publishing mediums at The Ink Home.",
-      avatar: "https://miro.medium.com/v2/resize:fit:2400/1*OonAmXM0uBzGf_KYL3s85w.png",
-      followers: 684,
-      mediumUrl: "https://medium.com/@farhankabir133"
-    },
-    {
-      name: "Dua Batool",
-      username: "dbatool242",
-      role: "Published Book Author | Zoology Student",
-      bio: "An inquisitive mind investigating life patterns, biological ecosystems, and deep narrative themes through published works.",
-      avatar: "https://miro.medium.com/v2/resize:fit:2400/1*4o35ax2_LSaOtP-3Lfi0Eg.jpeg",
-      followers: 135,
-      mediumUrl: "https://medium.com/@dbatool242"
-    }
-  ],
-  writers: [
-    {
-      name: "Adam McClarin",
-      username: "adammcclarin",
-      role: "VeloxSync Creator & AI Engineer",
-      bio: "Adam McClarin | Founder of Meraki Is Love · Creator of VeloxSync · Full-Stack Dev · AI Engineer · Published Author · Friendswood, TX · adammcclarin.com",
-      avatar: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "Mabel Penrose",
-      username: "mabelpenrose",
-      role: "HSP & Creative Essayist",
-      bio: "Free spirit, HSP, and former military brat exploring what it means to feel deeply in a chaotic world.",
-      avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "Yiwan Ye",
-      username: "yiwanye",
-      role: "Assistant Professor & Health Researcher",
-      bio: "Assistant Professor of Health & Human Services. Research interests include population health, happiness, cohort analysis, Bayesian statistics, and AI.",
-      avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "Soami Daya Krishnananda",
-      username: "soamidayakrishnananda",
-      role: "Physicist & Metaphysics Columnist",
-      bio: "A physicist at the crossroads of science and conscience, reflecting on bio-logic of life in the vast landscape of metaphysics.",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "curious but grounded | Anna Jaworska",
-      username: "annajaworska",
-      role: "Systems & Emotional Patterns Essayist",
-      bio: "I write about misunderstood things: people, systems, materials, ideas, and emotional patterns that don't fit neatly into modern life. Curious but grounded.",
-      avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "M. Arman Reza Shah",
-      username: "marmanrezashah",
-      role: "Geotechnical Engineer & Researcher",
-      bio: "Scientist | Geotechnical Engineer | Geo-Environmental Researcher | Academic Author | Faculty | Activist | Politician",
-      avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "Achelle Santos",
-      username: "achellesantos",
-      role: "Freelance Writer & Children's Author",
-      bio: "10+ years as a freelance writer/editor; aspiring to be a published children's book author.",
-      avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "Amber Faulk",
-      username: "amberfaulk",
-      role: "Mindfulness & Workplace Wellness Advisor",
-      bio: "My background in mindfulness, corporate wellness, and employee benefits helps me translate how people feel into practical, business-aligned workplace solutions.",
-      avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "Paushali Das",
-      username: "paushalidas",
-      role: "Literary & Emotional Well-being Columnist",
-      bio: "Paushali translates raw emotional experiences, trauma work, and creative writing practices into deeply connecting reflective essays.",
-      avatar: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e67?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "Sadman Taqi",
-      username: "sadmantaqi",
-      role: "Mechanical Engineer & Culture Writer",
-      bio: "A mechanical engineer deeply involved with art,culture,geopolitics, sports and many aspects of life. Searching tranquillity and serenity.",
-      avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "Taiba Mansuri",
-      username: "taibamansuri",
-      role: "Storytelling & Daily Chaos Observer",
-      bio: "Writer of modern life, emotions, and the psychology behind our daily chaos. If you like soulful storytelling mixed with sharp insight, you're home.",
-      avatar: "https://images.unsplash.com/photo-1524504388940-b1c06153033f?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "Claudio Casella",
-      username: "claudiocasella",
-      role: "Literature & Music Writer",
-      bio: "I'm static italian writer. Deeply love about literature, music and people.",
-      avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "Amoo Ridwan",
-      username: "amooridwan",
-      role: "Finance & Personal Discipline Columnist",
-      bio: "I'm deeply interested in the overlap between technology, financial growth, and personal discipline. Most of my time is spent figuring out how to work smarter.",
-      avatar: "https://images.unsplash.com/photo-1513956589380-bad6acb9b9d4?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "LOGESH T V | Genai Developer",
-      username: "logeshtv",
-      role: "AI Engineer & GenAI Explainer",
-      bio: "AI Engineer & founder. Explaining GenAI so simply even your grandma gets it. Making tech funny because debugging hurts. Welcome to the chaos!",
-      avatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "Mim Maya",
-      username: "mimmaya",
-      role: "Tech, Relationships & Healing Essayist",
-      bio: "I write about Tech, AI, Web-apps, Relationships, Motivation & Healing... where innovation meets what makes us human.",
-      avatar: "https://images.unsplash.com/photo-1554151228-14d9def656e4?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "Dua Batool",
-      username: "dbatool242",
-      role: "Published Author & Zoology Researcher",
-      bio: "Published Book Author | Zoology Student. Exploring society, human emotions, and untold realities through words that inspire reflection and meaningful dialogue.",
-      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "Jmactavish",
-      username: "jmactavish",
-      role: "Independent Creative Columnist",
-      bio: "Creative essayist and observer of human interactions, politics, and modern environments.",
-      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "Vikra K Krishnasamy",
-      username: "vikrakkrisnasamy",
-      role: "Cultural & Analytical Thinker",
-      bio: "Writing about human philosophy, technology intersections, and thoughts on growth.",
-      avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "LC Squared",
-      username: "lc-squared",
-      role: "Human Resilience & Motherhood Essayist",
-      bio: "Writing about invisible exhaustion, reinvention, grief, motherhood, and the beautifully messy parts of being human.",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=304&h=304&q=80"
-    },
-    {
-      name: "Michael Koyfman",
-      username: "michaelkoyfman",
-      role: "Politics, Finance & AI Student",
-      bio: "Hello! My name is Michael, a student who is incredibility interested in politics, finance, and artificial intelligence. Come check my blogs out!",
-      avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=304&h=304&q=80"
-    }
-  ]
-};
-
-export function transformRSSItems(items: any[]): Story[] {
-  const presetCovers = [
-    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80"
-  ];
-
-  const authorAvatars: Record<string, string> = {
-    "Elena Rostov": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80",
-    "Devon Vance": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80",
-    "Sophia Sterling": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80",
-    "Marcus Chen": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80"
-  };
-
-  const authorRoles: Record<string, string> = {
-    "Elena Rostov": "Editor-in-Chief",
-    "Devon Vance": "AI Creative Lead",
-    "Sophia Sterling": "Senior Graphic Editor",
-    "Marcus Chen": "Interaction Director"
-  };
-
-  return items.map((item: any): Story => {
-    const content = item.content || item.description || "";
-    let cover = "";
-    const imgMatches = content.match(/<img[^>]+src=["']([^"']+)["']/i);
-    if (imgMatches && imgMatches[1]) {
-      cover = imgMatches[1];
-    } else {
-      const randSeed = djb2Hash(item.title);
-      cover = presetCovers[Math.abs(randSeed) % presetCovers.length];
-    }
-
-    const author = item.author || "The Ink Home Team";
-    const avatar = authorAvatars[author] || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80";
-    const role = authorRoles[author] || "Staff Editor";
-
-    let slug = "";
-    if (item.link) {
-      const parts = item.link.split("/");
-      const lastPart = parts[parts.length - 1];
-      slug = lastPart ? lastPart.split("?")[0] : "";
-    }
-    if (!slug) {
-      slug = item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-    }
-
-    const cleanSnippet = content
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .substring(0, 180) + "...";
-
-    return {
-      title: item.title,
-      link: item.link,
-      author,
-      role,
-      pubDate: item.pubDate,
-      categories: Array.isArray(item.categories) ? item.categories : ["Editorial"],
-      description: cleanSnippet,
-      content,
-      cover,
-      slug,
-      avatar
-    };
-  });
+export function djb2Hash(str: string): number {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i += 1) {
+    hash = (hash << 5) + hash + str.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
 }
 
+function pickCover(seed: string, content: string): string {
+  const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (imgMatch && imgMatch[1]) return imgMatch[1];
+  return PRESET_COVERS[djb2Hash(seed) % PRESET_COVERS.length];
+}
+
+function slugFromLink(link: string, title: string): string {
+  let slug = "";
+  if (link) {
+    const parts = link.split("/");
+    const lastPart = parts[parts.length - 1];
+    slug = lastPart ? lastPart.split("?")[0] : "";
+  }
+  if (!slug) {
+    slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+  }
+  return slug;
+}
+
+function snippetFrom(content: string): string {
+  const text = content
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (text.length <= 180) return text;
+  return `${text.slice(0, 180).trimEnd()}...`;
+}
+
+async function fetchWithTimeout(url: string, timeout = FETCH_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    return await fetch(url, { signal: controller.signal, headers: { Accept: "application/rss+xml, application/xml, text/xml, */*" } });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Parses a Medium RSS document into normalized stories.
+ * Regex-based on purpose: it is dependency-free, deterministic and safe to run
+ * inside a short-lived serverless function.
+ */
 export function parseMediumRSS(xmlText: string): Story[] {
   const items: Story[] = [];
   const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-  let match;
+  let match: RegExpExecArray | null;
 
   while ((match = itemRegex.exec(xmlText)) !== null) {
     const itemContent = match[1];
 
-    let title = "Untitled Story";
-    const titleMatch = itemContent.match(/<title>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/title>/);
-    if (titleMatch) {
-      title = (titleMatch[1] || titleMatch[2] || "").trim();
-    }
+    const titleMatch = itemContent.match(
+      /<title>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/title>/,
+    );
+    const title = ((titleMatch?.[1] || titleMatch?.[2] || "") as string).trim() || "Untitled Story";
 
-    let link = "";
-    const linkMatch = itemContent.match(/<link>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/link>/);
-    if (linkMatch) {
-      link = (linkMatch[1] || linkMatch[2] || "").trim();
-    }
+    const linkMatch = itemContent.match(
+      /<link>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/link>/,
+    );
+    const link = ((linkMatch?.[1] || linkMatch?.[2] || "") as string).trim();
 
-    let author = "The Ink Home Team";
-    const creatorMatch = itemContent.match(/<dc:creator>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/dc:creator>/) ||
-                         itemContent.match(/<creator>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/creator>/);
-    if (creatorMatch) {
-      author = (creatorMatch[1] || creatorMatch[2] || "").trim();
-    }
+    const creatorMatch =
+      itemContent.match(/<dc:creator>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/dc:creator>/) ||
+      itemContent.match(/<creator>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/creator>/);
+    const author = ((creatorMatch?.[1] || creatorMatch?.[2] || "") as string).trim() || "The Ink Home";
 
-    let pubDate = new Date().toUTCString();
-    const pubDateMatch = itemContent.match(/<pubDate>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/pubDate>/);
-    if (pubDateMatch) {
-      pubDate = (pubDateMatch[1] || pubDateMatch[2] || "").trim();
-    }
+    const pubDateMatch = itemContent.match(
+      /<pubDate>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/pubDate>/,
+    );
+    const pubDate =
+      ((pubDateMatch?.[1] || pubDateMatch?.[2] || "") as string).trim() || new Date().toUTCString();
 
     const categories: string[] = [];
     const categoryRegex = /<category>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/category>/g;
-    let catMatch;
+    let catMatch: RegExpExecArray | null;
     while ((catMatch = categoryRegex.exec(itemContent)) !== null) {
-      categories.push((catMatch[1] || catMatch[2] || "").trim());
+      const value = ((catMatch[1] || catMatch[2] || "") as string).trim();
+      if (value && !categories.includes(value)) categories.push(value);
     }
-    if (categories.length === 0) {
-      categories.push("Editorial", "The Ink Home");
-    }
+    if (categories.length === 0) categories.push("Editorial");
 
-    let content = "";
-    const contentMatch = itemContent.match(/<content:encoded>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([\s\S]*?))<\/content:encoded>/) ||
-                         itemContent.match(/<description>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([\s\S]*?))<\/description>/);
-    if (contentMatch) {
-      content = (contentMatch[1] || contentMatch[2] || "").trim();
-    }
-
-    let cover = "";
-    const imgRegex = /<img[^>]+src=["']([^"']+)["']/i;
-    const imgMatch = content.match(imgRegex);
-    if (imgMatch && imgMatch[1]) {
-      cover = imgMatch[1];
-    } else {
-      const randSeed = djb2Hash(title);
-      const presetCovers = [
-        "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
-        "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?auto=format&fit=crop&w=1200&q=80",
-        "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=1200&q=80",
-        "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=1200&q=80",
-        "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80"
-      ];
-      cover = presetCovers[Math.abs(randSeed) % presetCovers.length];
-    }
-
-    const authorAvatars: Record<string, string> = {
-      "Elena Rostov": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80",
-      "Devon Vance": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80",
-      "Sophia Sterling": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80",
-      "Marcus Chen": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80"
-    };
-    const avatar = authorAvatars[author] || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80";
-
-    const authorRoles: Record<string, string> = {
-      "Elena Rostov": "Editor-in-Chief",
-      "Devon Vance": "AI Creative Lead",
-      "Sophia Sterling": "Senior Graphic Editor",
-      "Marcus Chen": "Interaction Director"
-    };
-    const role = authorRoles[author] || "Staff Editor";
-
-    let slug = "";
-    if (link) {
-      const parts = link.split("/");
-      const lastPart = parts[parts.length - 1];
-      slug = lastPart ? lastPart.split("?")[0] : "";
-    }
-    if (!slug) {
-      slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-    }
-
-    const cleanSnippet = content
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .substring(0, 180) + "...";
+    const contentMatch =
+      itemContent.match(
+        /<content:encoded>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([\s\S]*?))<\/content:encoded>/,
+      ) || itemContent.match(/<description>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([\s\S]*?))<\/description>/);
+    const content = ((contentMatch?.[1] || contentMatch?.[2] || "") as string).trim();
 
     items.push({
       title,
       link,
       author,
-      role,
+      role: "",
       pubDate,
       categories,
-      description: cleanSnippet,
+      description: snippetFrom(content),
       content,
-      cover,
-      slug,
-      avatar
+      cover: pickCover(title, content),
+      slug: slugFromLink(link, title),
+      avatar: "",
     });
   }
 
   return items;
 }
 
-export function djb2Hash(str: string): number {
-  let hash = 5381;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) + hash) + str.charCodeAt(i);
-    hash = hash & hash;
+/** Normalizes an rss2json.com item payload into the same Story shape. */
+export function transformRSSItems(items: any[]): Story[] {
+  return (Array.isArray(items) ? items : []).map((item: any): Story => {
+    const content = item?.content || item?.description || "";
+    const title = item?.title || "Untitled Story";
+    const link = item?.link || "";
+    const author = item?.author || item?.creator || "The Ink Home";
+
+    return {
+      title,
+      link,
+      author,
+      role: "",
+      pubDate: item?.pubDate || new Date().toUTCString(),
+      categories: Array.isArray(item?.categories) && item.categories.length > 0 ? item.categories : ["Editorial"],
+      description: snippetFrom(content),
+      content,
+      cover: pickCover(title, content),
+      slug: slugFromLink(link, title),
+      avatar: "",
+    };
+  });
+}
+
+async function fetchDirect(url: string): Promise<Story[]> {
+  const response = await fetchWithTimeout(url);
+  if (!response.ok) return [];
+  const parsed = parseMediumRSS(await response.text());
+  return parsed.length > 0 ? parsed : [];
+}
+
+async function fetchViaRss2Json(url: string): Promise<Story[]> {
+  const endpoint = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
+  const response = await fetchWithTimeout(endpoint, RSS2JSON_TIMEOUT_MS);
+  if (!response.ok) return [];
+  const payload = await response.json();
+  if (payload?.status !== "ok" || !Array.isArray(payload.items) || payload.items.length === 0) {
+    return [];
   }
-  return Math.abs(hash);
+  return transformRSSItems(payload.items);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+  delayMs = 0,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const index = cursor;
+      cursor += 1;
+      if (index >= items.length) return;
+      results[index] = await fn(items[index]);
+      if (delayMs > 0) await sleep(delayMs);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+/**
+ * Medium's publication feed is capped at 10 items. To surface a fuller archive
+ * we also pull the publication's per-tag feeds (each capped at ~10) and merge
+ * them. Failures are tolerated per-tag.
+ */
+async function fetchTagFeeds(mainStories: Story[]): Promise<Story[]> {
+  const tags = Array.from(
+    new Set(
+      mainStories
+        .flatMap((story) => story.categories)
+        .map((tag) => tag.trim().toLowerCase())
+        .filter((tag) => tag.length > 1 && tag.length < 40 && tag !== "the-ink-home" && tag !== "editorial"),
+    ),
+  ).slice(0, MAX_TAG_FEEDS);
+
+  if (tags.length === 0) return [];
+
+  try {
+    const batches = await Promise.race([
+      mapWithConcurrency(
+        tags,
+        TAG_CONCURRENCY,
+        async (tag) => {
+          try {
+            return await fetchDirect(`${PUBLICATION_FEED}/tagged/${encodeURIComponent(tag)}`);
+          } catch {
+            return [] as Story[];
+          }
+        },
+        TAG_DELAY_MS,
+      ),
+      sleep(TAG_FEED_TIMEOUT_MS).then(() => [] as Story[]),
+    ]);
+    return batches.flat();
+  } catch {
+    return [];
+  }
+}
+
+function normalize(stories: Story[]): Story[] {
+  const seen = new Set<string>();
+  const merged: Story[] = [];
+
+  for (const story of stories) {
+    const key = story.slug || story.link || story.title;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    merged.push({
+      ...story,
+      link: (story.link || "").split("?")[0],
+      categories: (Array.isArray(story.categories) ? story.categories : [])
+        .filter((c) => typeof c === "string" && c.trim().length > 0 && c.toLowerCase() !== "the-ink-home")
+        .slice(0, 5),
+    });
+  }
+
+  merged.sort((a, b) => Date.parse(b.pubDate) - Date.parse(a.pubDate));
+  return merged.slice(0, MAX_STORIES);
+}
+
+async function loadFeed(): Promise<CacheEntry> {
+  let direct: Story[] = [];
+  try {
+    direct = await fetchDirect(PUBLICATION_FEED);
+  } catch {
+    direct = [];
+  }
+
+  if (direct.length > 0) {
+    const tagged = await fetchTagFeeds(direct);
+    return {
+      stories: normalize([...direct, ...tagged]),
+      fetchedAt: Date.now(),
+      source: "medium-rss",
+    };
+  }
+
+  try {
+    const viaProxy = await fetchViaRss2Json(PUBLICATION_FEED);
+    if (viaProxy.length > 0) {
+      return { stories: normalize(viaProxy), fetchedAt: Date.now(), source: "rss2json" };
+    }
+  } catch {
+    /* fall through to stale cache */
+  }
+
+  if (cache) return { ...cache, source: `${cache.source}-stale` };
+  return { stories: [], fetchedAt: Date.now(), source: "unavailable" };
+}
+
+/**
+ * Returns the publication stories, using a per-process TTL cache and
+ * request de-duplication so concurrent callers only trigger one fetch.
+ */
+export async function getPublicationStories(options: { force?: boolean } = {}): Promise<{
+  stories: Story[];
+  source: string;
+}> {
+  if (!options.force && cache && Date.now() - cache.fetchedAt < CACHE_TTL_MS) {
+    return { stories: cache.stories, source: cache.source };
+  }
+
+  if (!inFlight) {
+    inFlight = loadFeed()
+      .then((entry) => {
+        if (entry.stories.length > 0) cache = entry;
+        return entry;
+      })
+      .finally(() => {
+        inFlight = null;
+      });
+  }
+
+  const entry = await inFlight;
+  return { stories: entry.stories, source: entry.source };
+}
+
+/** Test hook: clears the module-level cache. */
+export function __clearStoryCache(): void {
+  cache = null;
+  inFlight = null;
+}
+
+/** Seeds the cache (used by the Express server to restore a disk snapshot). */
+export function primePublicationCache(stories: Story[], source = "primed"): void {
+  if (!Array.isArray(stories) || stories.length === 0) return;
+  cache = { stories: normalize(stories), fetchedAt: Date.now(), source };
+}
+
+/** Returns the current cache snapshot, if any. */
+export function getCachedPublication(): CacheEntry | null {
+  return cache ? { ...cache } : null;
 }

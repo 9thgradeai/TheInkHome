@@ -473,23 +473,30 @@ body {
   --tracking-wide: 0.05em;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-display);
-  letter-spacing: var(--tracking-tight);
-  line-height: var(--leading-tight);
-  font-weight: 700;
-}
+@layer utilities {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    letter-spacing: var(--tracking-tight);
+    line-height: var(--leading-tight);
+    font-weight: 700;
+  }
 
-h1 { font-size: var(--text-7xl); }
-h2 { font-size: var(--text-5xl); }
-h3 { font-size: var(--text-3xl); }
-h4 { font-size: var(--text-xl); }
+  h1 { font-size: var(--text-7xl); }
+  h2 { font-size: var(--text-5xl); }
+  h3 { font-size: var(--text-3xl); }
+  h4 { font-size: var(--text-xl); }
 
-@media (max-width: 640px) {
-  h1 { font-size: var(--text-5xl); }
-  h2 { font-size: var(--text-4xl); }
-  h3 { font-size: var(--text-2xl); }
-  h4 { font-size: var(--text-lg); }
+  @media (max-width: 640px) {
+    h1 { font-size: var(--text-5xl); }
+    h2 { font-size: var(--text-4xl); }
+    h3 { font-size: var(--text-2xl); }
+    h4 { font-size: var(--text-lg); }
+  }
 }
 
 body {
