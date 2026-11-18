@@ -14,9 +14,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     return res.status(200).json({ source, stories });
   } catch (error) {
-    console.error("stories handler failed", error instanceof Error ? error.message : error);
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("stories handler failed", detail);
     res.setHeader("Cache-Control", "no-store");
-    return res.status(500).json({ error: "Failed to load stories" });
+    return res.status(500).json({ error: "Failed to load stories", detail });
   }
 }
 
