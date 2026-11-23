@@ -15,8 +15,12 @@ export function StoryCard({ story, onOpen }: StoryCardProps) {
   const excerpt = stripHtml(story.description || story.content).slice(0, 170);
 
   return (
-    <button
-      onClick={() => onOpen(story)}
+    <a
+      href={`/story/${encodeURIComponent(story.slug)}`}
+      onClick={(event) => {
+        event.preventDefault();
+        onOpen(story);
+      }}
       className="group flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c0f] text-left transition-colors duration-300 hover:border-white/25"
     >
       <div className="relative aspect-[16/10] overflow-hidden">
@@ -58,7 +62,7 @@ export function StoryCard({ story, onOpen }: StoryCardProps) {
           </span>
         </div>
       </div>
-    </button>
+    </a>
   );
 }
 

@@ -5,7 +5,7 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("/fonts/Inter-Light.ttf") format("truetype");
+  src: url("/fonts/Inter-Light.woff2") format("woff2");
 }
 
 @font-face {
@@ -13,7 +13,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("/fonts/Inter-Regular.ttf") format("truetype");
+  src: url("/fonts/Inter-Regular.woff2") format("woff2");
 }
 
 @font-face {
@@ -21,7 +21,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("/fonts/Inter-Medium.ttf") format("truetype");
+  src: url("/fonts/Inter-Medium.woff2") format("woff2");
 }
 
 @font-face {
@@ -29,7 +29,7 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("/fonts/Inter-SemiBold.ttf") format("truetype");
+  src: url("/fonts/Inter-SemiBold.woff2") format("woff2");
 }
 
 @font-face {
@@ -37,7 +37,7 @@
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url("/fonts/Inter-Bold.ttf") format("truetype");
+  src: url("/fonts/Inter-Bold.woff2") format("woff2");
 }
 
 @font-face {
@@ -45,7 +45,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("/fonts/SpaceGrotesk-Regular.ttf") format("truetype");
+  src: url("/fonts/SpaceGrotesk-Regular.woff2") format("woff2");
 }
 
 @font-face {
@@ -53,7 +53,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("/fonts/SpaceGrotesk-Medium.ttf") format("truetype");
+  src: url("/fonts/SpaceGrotesk-Medium.woff2") format("woff2");
 }
 
 @font-face {
@@ -61,7 +61,7 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("/fonts/SpaceGrotesk-SemiBold.ttf") format("truetype");
+  src: url("/fonts/SpaceGrotesk-SemiBold.woff2") format("woff2");
 }
 
 @font-face {
@@ -69,7 +69,7 @@
   font-style: normal;
   font-weight: 900;
   font-display: swap;
-  src: url("/fonts/SpaceGrotesk-Bold.ttf") format("truetype");
+  src: url("/fonts/SpaceGrotesk-Bold.woff2") format("woff2");
 }
 
 @theme {
@@ -618,13 +618,10 @@ textarea:focus-visible {
   top: 0;
 }
 
-/* Improve touch targets */
+/* Improve touch targets (buttons only; inline text links must not be forced) */
 @media (max-width: 640px) {
-  button,
-  a,
-  [role="button"] {
+  button {
     min-height: 44px;
-    min-width: 44px;
   }
 }
 

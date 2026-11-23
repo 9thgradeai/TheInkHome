@@ -36,8 +36,7 @@ export default function AboutPage({
 }: AboutPageProps) {
   return (
     <section className="min-h-screen bg-[#08080a] text-white">
-
-      <main className="pt-32 px-4 pb-40 sm:px-8 sm:pb-48">
+      <div className="px-4 pb-40 pt-32 sm:px-8 sm:pb-48">
         <div className="mx-auto max-w-7xl">
           <div
             className="relative overflow-hidden border-y border-white/10 bg-[#0a0b0d] py-24 sm:py-32"
@@ -103,7 +102,7 @@ export default function AboutPage({
                 {[
                   [String(storyCount), "Stories on site"],
                   [String(contributorCount), "Contributors"],
-                  ["~30 min", "Refresh cadence"],
+                  ["10 min", "Refresh cadence"],
                   ["2026", "Volume 07"],
                 ].map(([value, label]) => (
                   <div key={label} className="bg-[#0a0b0d] px-5 py-6 sm:px-6 sm:py-7">
@@ -240,7 +239,7 @@ export default function AboutPage({
             </div>
           </section>
         </div>
-      </main>
+      </div>
     </section>
   );
 }

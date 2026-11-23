@@ -2,13 +2,16 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { ArrowDownRight, Feather, Search } from "lucide-react";
 import { StoryCard } from "../components/StoryCard";
+import { ErrorState, EmptyState } from "../components/ui/States";
 import { Story } from "../types";
 import { stripHtml, topCategories } from "../lib/format";
 
 interface StoriesPageProps {
   stories: Story[];
   loading: boolean;
+  error?: boolean;
   onOpen: (story: Story) => void;
+  onRetry?: () => void;
 }
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -38,11 +41,27 @@ function Reveal({
 export default function StoriesPage({
   stories,
   loading,
+  error = false,
   onOpen,
+  onRetry,
 }: StoriesPageProps) {
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("All");
+  const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get("q") || "");
+  const [category, setCategory] = useState(() => new URLSearchParams(window.location.search).get("tag") || "All");
   const [visible, setVisible] = useState(30);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const next = new URLSearchParams();
+    const trimmed = query.trim();
+    if (trimmed) next.set("q", trimmed);
+    const tag = category;
+    if (tag && tag !== "All") next.set("tag", tag);
+    const qs = next.toString();
+    const target = qs ? `/stories?${qs}` : "/stories";
+    if (window.location.pathname + window.location.search !== target) {
+      window.history.replaceState(null, "", target);
+    }
+  }, [query, category]);
 
   const categories = useMemo(() => topCategories(stories, 10), [stories]);
 
@@ -66,8 +85,7 @@ export default function StoriesPage({
 
   return (
     <section className="min-h-screen bg-[#08080a] text-white">
-
-      <main className="pt-20 px-4 pb-24 sm:px-8 sm:pb-32">
+      <div className="px-4 pb-24 pt-20 sm:px-8 sm:pb-32">
         <div className="mx-auto max-w-7xl">
           <div className="pt-32 sm:pt-36">
             <div>
@@ -128,21 +146,15 @@ export default function StoriesPage({
             </label>
           </div>
 
-          {filtered.length === 0 ? (
-            <div className="mt-16 flex flex-col items-center gap-4 rounded-2xl border border-dashed border-white/15 py-24 text-center">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">
-                No stories match that search
-              </p>
-              <button
-                onClick={() => {
-                  setQuery("");
-                  setCategory("All");
-                }}
-                className="rounded-full border border-white/15 px-6 py-3 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-white/60 hover:text-white"
-              >
-                Reset filters
-              </button>
-            </div>
+          {error && stories.length === 0 ? (
+            <ErrorState onRetry={onRetry} />
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              onAction={() => {
+                setQuery("");
+                setCategory("All");
+              }}
+            />
           ) : (
             <>
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -174,7 +186,7 @@ export default function StoriesPage({
             </>
           )}
         </div>
-      </main>
+      </div>
     </section>
   );
 }

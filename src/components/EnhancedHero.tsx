@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { ArrowDownRight, ArrowUpRight, BookOpen } from "lucide-react";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 
 const InkHomeCanvas = lazy(() => import("./InkHomeCanvas"));
 
@@ -14,6 +14,22 @@ interface EnhancedHeroProps {
 }
 
 export default function EnhancedHero({ storyCount, contributorCount, loading, onNavigate }: EnhancedHeroProps) {
+  const [canvasReady, setCanvasReady] = useState(false);
+
+  useEffect(() => {
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) return;
+    const idle = (window as any).requestIdleCallback;
+    const cancel = (window as any).cancelIdleCallback;
+    const start = () => setCanvasReady(true);
+    if (typeof idle === "function") {
+      const id = idle(start, { timeout: 1500 });
+      return () => cancel?.(id);
+    }
+    const timer = window.setTimeout(start, 400);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   return (
     <section className="relative min-h-screen overflow-hidden flex items-center">
       {/* Animated background */}
@@ -43,7 +59,7 @@ export default function EnhancedHero({ storyCount, contributorCount, loading, on
 
       {/* 3D Canvas - Ink & Home Story */}
       <Suspense fallback={null}>
-        <InkHomeCanvas />
+        {canvasReady ? <InkHomeCanvas /> : null}
       </Suspense>
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-8 w-full z-10">

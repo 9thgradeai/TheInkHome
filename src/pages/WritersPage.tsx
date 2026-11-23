@@ -86,8 +86,7 @@ export default function WritersPage({
 
   return (
     <section className="min-h-screen bg-[#08080a] text-white">
-
-      <main className="pt-24 px-4 pb-32 sm:px-8 sm:pb-40">
+      <div className="px-4 pb-32 pt-24 sm:px-8 sm:pb-40">
         <div className="mx-auto max-w-7xl">
           <div className="mb-14">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
@@ -267,7 +266,7 @@ export default function WritersPage({
             )}
           </section>
         </div>
-      </main>
+      </div>
     </section>
   );
 }

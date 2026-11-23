@@ -150,10 +150,18 @@ export default function SiteFooter({ onNavigate }: SiteFooterProps) {
         <div className="mt-8 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-center font-mono text-[9px] uppercase tracking-[0.18em] text-white/30 sm:flex-row sm:text-left">
           <span>© 2026 The Ink Home. Words feel at home here.</span>
           <div className="flex gap-5">
-            {["Privacy", "Terms", "Editorial policy"].map((label) => (
-              <a key={label} href="#" className="transition-colors hover:text-white/70">
-                {label}
-              </a>
+            {[
+              { label: "Privacy", path: "/privacy" },
+              { label: "Terms", path: "/terms" },
+              { label: "Editorial policy", path: "/editorial" },
+            ].map((item) => (
+              <button
+                key={item.label}
+                onClick={() => onNavigate(item.path)}
+                className="transition-colors hover:text-white/70"
+              >
+                {item.label}
+              </button>
             ))}
           </div>
         </div>

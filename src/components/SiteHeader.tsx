@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import { Logo } from "./Logo";
+import Link from "./Link";
 
 interface SiteHeaderProps {
   onNavigate: (path: string) => void;
@@ -17,6 +18,7 @@ const links = [
 export default function SiteHeader({ onNavigate, onOpenStory }: SiteHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -24,6 +26,30 @@ export default function SiteHeader({ onNavigate, onOpenStory }: SiteHeaderProps)
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const node = menuRef.current;
+    if (!node) return;
+    const focusables = Array.from(
+      node.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter((element) => element.offsetParent !== null);
+    if (focusables.length > 0) focusables[0].focus();
+    return () => {
+      // restore nothing here; caller keeps control
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";
@@ -49,15 +75,16 @@ export default function SiteHeader({ onNavigate, onOpenStory }: SiteHeaderProps)
             <Logo size={34} textColor="text-white" />
           </button>
 
-          <nav className="hidden items-center gap-7 md:flex">
+          <nav className="hidden items-center gap-7 md:flex" aria-label="Primary">
             {links.map((link) => (
-              <button
+              <Link
                 key={link.href}
-                onClick={() => go(link.href)}
+                to={link.href}
+                onNavigate={go}
                 className="text-[11px] font-medium uppercase tracking-[0.16em] text-white/55 transition-colors hover:text-white"
               >
                 {link.label}
-              </button>
+              </Link>
             ))}
           </nav>
 
@@ -74,9 +101,12 @@ export default function SiteHeader({ onNavigate, onOpenStory }: SiteHeaderProps)
           </div>
 
           <button
+            type="button"
             onClick={() => setMenuOpen((open) => !open)}
             className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white md:hidden"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-controls="site-menu"
+            aria-expanded={menuOpen}
           >
             {menuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
@@ -86,6 +116,8 @@ export default function SiteHeader({ onNavigate, onOpenStory }: SiteHeaderProps)
       <AnimatePresence>
         {menuOpen && (
           <motion.div
+            id="site-menu"
+            ref={menuRef}
             className="fixed inset-0 z-40 flex flex-col bg-[#08080a] px-6 pb-8 pt-24 md:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

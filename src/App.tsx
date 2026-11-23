@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowDownRight,
@@ -16,17 +17,32 @@ import {
 } from "lucide-react";
 import SiteHeader from "./components/SiteHeader";
 import SiteFooter from "./components/SiteFooter";
-import ReadingPage from "./components/ReadingPage";
 import EnhancedHero from "./components/EnhancedHero";
+import FeaturedStory from "./components/FeaturedStory";
 import { StoryCard } from "./components/StoryCard";
 import AuthorAvatar from "./components/AuthorAvatar";
 import { FALLBACK_ABOUT } from "./data/fallbackAbout";
 import { Story } from "./types";
 import { stripHtml, topCategories } from "./lib/format";
-import StoriesPage from "./pages/StoriesPage";
-import WritersPage from "./pages/WritersPage";
-import AboutPage from "./pages/AboutPage";
-import AIAssistant from "./components/AIAssistant";
+
+const ReadingPage = lazy(() => import("./components/ReadingPage"));
+const AIAssistant = lazy(() => import("./components/AIAssistant"));
+const StoriesPage = lazy(() => import("./pages/StoriesPage"));
+const WritersPage = lazy(() => import("./pages/WritersPage"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
+const LegalPage = lazy(() => import("./pages/LegalPage"));
+const AuthorPage = lazy(() => import("./pages/AuthorPage"));
+const SavedPage = lazy(() => import("./pages/SavedPage"));
+
+import NewsletterSignup from "./components/NewsletterSignup";
+
+function RouteFallback() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center" aria-busy="true">
+      <div className="h-10 w-10 animate-spin rounded-full border border-white/15 border-t-[#c8ff4d]" />
+    </div>
+  );
+}
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const STORY_CACHE_KEY = "the-ink-home:stories:v5";
@@ -63,7 +79,14 @@ interface AboutData {
 }
 
 function useCurrentPath() {
-  const [path, setPath] = useState(() => window.location.pathname);
+  const [path, setPath] = useState<string>(() => {
+    const redirect = new URLSearchParams(window.location.search).get("redirect_to");
+    if (redirect && redirect.startsWith("/") && !redirect.startsWith("//")) {
+      window.history.replaceState(null, "", redirect);
+      return redirect;
+    }
+    return window.location.pathname;
+  });
 
   useEffect(() => {
     const onPop = () => setPath(window.location.pathname);
@@ -707,6 +730,9 @@ function SubscribeSection({ onNavigate }: { onNavigate: (path: string) => void }
               <p className="mt-4 text-center font-mono text-[8px] uppercase tracking-[0.14em] text-white/50">
                 Published by The Ink Home editors
               </p>
+              <div className="mt-6">
+                <NewsletterSignup />
+              </div>
             </div>
           </div>
         </div>
@@ -908,6 +934,34 @@ export default function App() {
   const storySlug = path.startsWith("/story/") ? decodeURIComponent(path.replace("/story/", "")) : null;
   const activeStory = storySlug ? stories.find((story) => story.slug === storySlug) : undefined;
 
+  const authorMatch = path.match(/^\/writer\/([^/]+)$/);
+  const authorSlug = authorMatch ? decodeURIComponent(authorMatch[1]) : null;
+  const authorCandidates = [...about.writers, ...about.editors];
+  const authorPerson =
+    authorSlug === null
+      ? null
+      : authorCandidates.find((person) => {
+          const key = String(person.name || "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/(^-|-$)/g, "");
+          const needle = authorSlug.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+          return key === needle;
+        }) || null;
+  const authorStories = authorPerson
+    ? stories.filter((story) => {
+        const key = String(story.author || "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "");
+        const authorKey = String(authorPerson.name || "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "");
+        return key === authorKey;
+      })
+    : [];
+
   useEffect(() => {
     const description = document.querySelector('meta[name="description"]');
     const ogTitle = document.querySelector('meta[property="og:title"]');
@@ -1011,9 +1065,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#08080a] text-white selection:bg-[#c8ff4d] selection:text-black">
-      <a href="#main" className="skip-to-content">
-        Skip to content
-      </a>
+      <Analytics />
       <SiteHeader
         onNavigate={navigate}
         onOpenStory={() => {
@@ -1021,10 +1073,12 @@ export default function App() {
         }}
       />
 
-      <AIAssistant 
-  storyContext={activeStory}
-  pageContext={activeStory ? "reading" : path === "/writers" ? "profile" : "browse"}
-/>
+      <Suspense fallback={<RouteFallback />}>
+        <AIAssistant
+          storyContext={activeStory}
+          pageContext={activeStory ? "reading" : path === "/writers" ? "profile" : "browse"}
+        />
+      </Suspense>
 
       <main id="main">
         <AnimatePresence mode="wait">
@@ -1035,6 +1089,7 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.28 }}
           >
+            <Suspense fallback={<RouteFallback />}>
             {activeStory ? (
               <ReadingPage
                 story={activeStory}
@@ -1053,7 +1108,9 @@ export default function App() {
               <StoriesPage
                 stories={stories}
                 loading={loading && !live}
+                error={storyError}
                 onOpen={openStory}
+                onRetry={() => setReloadKey((key) => key + 1)}
               />
             ) : path === "/writers" ? (
               <WritersPage
@@ -1069,6 +1126,16 @@ export default function App() {
                 contributorCount={contributorCount}
                 onNavigate={navigate}
               />
+            ) : path === "/privacy" ? (
+              <LegalPage kind="privacy" onBack={() => navigate("/about")} />
+            ) : path === "/terms" ? (
+              <LegalPage kind="terms" onBack={() => navigate("/about")} />
+            ) : path === "/editorial" ? (
+              <LegalPage kind="editorial" onBack={() => navigate("/about")} />
+            ) : authorSlug ? (
+              <AuthorPage person={authorPerson} stories={authorStories} onBack={() => navigate("/writers")} onOpen={openStory} />
+            ) : path === "/saved" ? (
+              <SavedPage stories={stories.filter((story) => saved.includes(story.slug))} onBack={() => navigate("/#latest")} onOpen={openStory} />
             ) : storySlug ? (
               <StoryNotFound loading={loading} onNavigate={navigate} />
             ) : (
@@ -1079,6 +1146,8 @@ export default function App() {
                   loading={loading && !live}
                   onNavigate={navigate}
                 />
+
+                <FeaturedStory story={stories[0]} loading={loading && !live} onOpen={openStory} />
 
                 <Marquee topics={topics} />
 
@@ -1113,6 +1182,7 @@ export default function App() {
                 <SubscribeSection onNavigate={navigate} />
               </>
             )}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>
