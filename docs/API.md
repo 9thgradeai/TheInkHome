@@ -52,12 +52,18 @@ Returns the publication story archive.
 }
 ```
 
-- **`500`** with `{ "error": "Failed to load stories" }` when every source fails.
+- **`500`** with `{ "error": "Failed to load stories" }` only on an unexpected internal error. When
+  live sources are unreachable the endpoint still returns `200` from the bundled snapshot
+  (`"source": "snapshot"`) so the archive is never empty.
+- `source` is one of `medium-rss`, `rss2json`, `snapshot`, or a `*-stale` cache variant.
 
 ### Caching
 
 - `Cache-Control: public, max-age=300, stale-while-revalidate=600`
 - In-process TTL cache of 10 minutes with single-flight de-duplication.
+- On serverless (`process.env.VERCEL`) tag-feed enrichment is awaited within a bounded budget so cold
+  starts return the full archive; snapshots are retried against the live feed after ~60s.
+- Refresh the bundled snapshot after publishing with `npm run sync:snapshot`.
 - Optional disk snapshot persisted to `.cache/publication.json` and restored on boot.
 
 ## `GET /api/about`

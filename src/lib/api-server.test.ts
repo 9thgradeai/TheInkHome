@@ -1,5 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { MAX_STORIES, PUBLICATION_FEED, djb2Hash, parseMediumRSS, transformRSSItems } from "./api-server";
+import { describe, expect, it, vi } from "vitest";
+import {
+  MAX_STORIES,
+  PUBLICATION_FEED,
+  __clearStoryCache,
+  djb2Hash,
+  getPublicationStories,
+  parseMediumRSS,
+  transformRSSItems,
+} from "./api-server";
+import { FALLBACK_STORIES } from "../data/fallbackStories.ts";
 
 const SAMPLE_RSS = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/">
@@ -83,5 +92,31 @@ describe("djb2Hash", () => {
 describe("constants", () => {
   it("caps the archive at the planned slice size", () => {
     expect(MAX_STORIES).toBe(50);
+  });
+});
+
+describe("bundled fallback snapshot", () => {
+  it("contains real, well-formed stories", () => {
+    expect(FALLBACK_STORIES.length).toBeGreaterThan(0);
+    for (const story of FALLBACK_STORIES) {
+      expect(story.title.length).toBeGreaterThan(0);
+      expect(story.link).toContain("medium.com");
+      expect(story.slug.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("is served when every live source is unreachable", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("network down")) as unknown as typeof fetch;
+    __clearStoryCache();
+
+    try {
+      const result = await getPublicationStories({ force: true });
+      expect(result.stories.length).toBe(FALLBACK_STORIES.length);
+      expect(result.source).toBe("snapshot");
+    } finally {
+      globalThis.fetch = originalFetch;
+      __clearStoryCache();
+    }
   });
 });

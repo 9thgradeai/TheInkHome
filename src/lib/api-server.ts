@@ -1,4 +1,5 @@
 import type { Story } from "../types.ts";
+import { FALLBACK_STORIES } from "../data/fallbackStories.ts";
 
 /**
  * Server-side content pipeline for The Ink Home.
@@ -16,12 +17,20 @@ export const PUBLICATION_FEED = "https://medium.com/feed/the-ink-home";
 export const MAX_STORIES = 50;
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
-const FETCH_TIMEOUT_MS = 12000;
-const RSS2JSON_TIMEOUT_MS = 12000;
-const TAG_FEED_TIMEOUT_MS = 15000;
+const SNAPSHOT_RETRY_MS = 60 * 1000;
+const FETCH_TIMEOUT_MS = 8000;
+const RSS2JSON_TIMEOUT_MS = 8000;
+const TAG_FEED_TIMEOUT_MS = 6000;
 const MAX_TAG_FEEDS = 10;
 const TAG_CONCURRENCY = 4;
 const TAG_DELAY_MS = 150;
+
+// Vercel freezes a function as soon as the response is sent, so fire-and-forget
+// work does not reliably finish there. On serverless we await enrichment within
+// a bounded budget instead; self-hosted Express keeps doing it in the background.
+const IS_SERVERLESS = Boolean(process.env.VERCEL);
+const USER_AGENT =
+  "Mozilla/5.0 (compatible; TheInkHome/1.0; +https://theinkhome.live) AppleWebKit/537.36 (KHTML, like Gecko)";
 
 type CacheEntry = { stories: Story[]; fetchedAt: number; source: string };
 
@@ -80,7 +89,13 @@ async function fetchWithTimeout(url: string, timeout = FETCH_TIMEOUT_MS): Promis
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    const response = await fetch(url, { signal: controller.signal, headers: { Accept: "application/rss+xml, application/xml, text/xml, */*" } });
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        Accept: "application/rss+xml, application/xml, text/xml, */*",
+        "User-Agent": USER_AGENT,
+      },
+    });
     clearTimeout(timer);
     return response;
   } catch {
@@ -285,6 +300,12 @@ function normalize(stories: Story[]): Story[] {
   return merged.slice(0, MAX_STORIES);
 }
 
+function lastKnownGood(source: string): CacheEntry | null {
+  const bundled = normalize(FALLBACK_STORIES);
+  if (bundled.length === 0) return null;
+  return { stories: bundled, fetchedAt: Date.now(), source };
+}
+
 async function loadFeed(): Promise<CacheEntry> {
   let direct: Story[] = [];
   try {
@@ -294,10 +315,15 @@ async function loadFeed(): Promise<CacheEntry> {
   }
 
   if (direct.length > 0) {
-    // Return the direct feed immediately so the response is fast. Tag feeds are
-    // fetched asynchronously to enrich the cache for the next request; they must
-    // never block the response (they are slow/external and can time out on
-    // serverless runtimes).
+    if (IS_SERVERLESS) {
+      // Await enrichment within a bounded budget so cold serverless responses
+      // still surface the full archive rather than only the latest 10 items.
+      const tagged = await fetchTagFeeds(direct);
+      return { stories: normalize([...direct, ...tagged]), fetchedAt: Date.now(), source: "medium-rss" };
+    }
+
+    // Self-hosted: return the direct feed immediately so the response is fast.
+    // Tag feeds enrich the cache asynchronously for subsequent requests.
     void fetchTagFeeds(direct).then((tagged) => {
       const merged = normalize([...direct, ...tagged]);
       cache = { stories: merged, fetchedAt: Date.now(), source: "medium-rss" };
@@ -315,6 +341,12 @@ async function loadFeed(): Promise<CacheEntry> {
   }
 
   if (cache) return { ...cache, source: `${cache.source}-stale` };
+
+  // Every live source failed: serve the last-known-good snapshot of real
+  // published stories so the archive is never empty on production.
+  const snapshot = lastKnownGood("snapshot");
+  if (snapshot) return snapshot;
+
   return { stories: [], fetchedAt: Date.now(), source: "unavailable" };
 }
 
@@ -333,7 +365,12 @@ export async function getPublicationStories(options: { force?: boolean } = {}): 
   if (!inFlight) {
     inFlight = loadFeed()
       .then((entry) => {
-        if (entry.stories.length > 0) cache = entry;
+        if (entry.stories.length > 0) {
+          // A snapshot is a safety net, not fresh content: retry the live feed
+          // soon instead of pinning the fallback for the full cache window.
+          const ageShift = entry.source === "snapshot" ? CACHE_TTL_MS - SNAPSHOT_RETRY_MS : 0;
+          cache = { ...entry, fetchedAt: Date.now() - ageShift };
+        }
         return entry;
       })
       .finally(() => {

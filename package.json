@@ -13,7 +13,8 @@
     "predeploy": "npm run build",
     "deploy": "vercel --prod --token $VERCEL_TOKEN",
     "lint": "tsc --noEmit",
-    "test": "vitest"
+    "test": "vitest",
+    "sync:snapshot": "tsx scripts/sync-snapshot.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

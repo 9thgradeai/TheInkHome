@@ -54,7 +54,8 @@ docs/                   This documentation set
 ## Source of truth
 
 - Story data: Medium RSS (primary) → rss2json (fallback) → tag feeds (secondary aggregation) →
-  in-memory/disk cache.
+  in-memory/disk cache → bundled last-known-good snapshot (`src/data/fallbackStories.ts`),
+  refreshed via `npm run sync:snapshot`.
 - Publication facts: `src/lib/knowledge.ts` (server-side Ink Assistant knowledge base).
 
 ## Deployment modes
