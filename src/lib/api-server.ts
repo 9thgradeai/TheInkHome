@@ -1,5 +1,5 @@
-import type { Story } from "../types.ts";
-import { FALLBACK_STORIES } from "../data/fallbackStories.ts";
+import type { Story } from "../types.js";
+import { FALLBACK_STORIES } from "../data/fallbackStories.js";
 
 /**
  * Server-side content pipeline for The Ink Home.
@@ -8,9 +8,10 @@ import { FALLBACK_STORIES } from "../data/fallbackStories.ts";
  * Medium RSS feed. Shared by the Express dev/prod server (`server.ts`) and the
  * Vercel serverless functions (`api/*`).
  *
- * NOTE: every relative import in this module graph MUST carry an explicit
- * `.ts` extension. The Vercel Node runtime loads `api/*.ts` as native ESM
- * (Node 24 type-stripping), which does not perform extension resolution.
+ * NOTE: every relative import in this module graph MUST use the emitted `.js`
+ * extension (even though the source is `.ts`). Vercel transpiles each function
+ * and its traced dependencies to `.js` and keeps import specifiers verbatim, so
+ * a `.ts` specifier would survive into runtime and throw ERR_MODULE_NOT_FOUND.
  */
 
 export const PUBLICATION_FEED = "https://medium.com/feed/the-ink-home";

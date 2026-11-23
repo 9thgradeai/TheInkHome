@@ -135,7 +135,8 @@ The AI is disabled (`503`) when `GROQ_API_KEY` is not configured.
 
 ## Runtime contract
 
-- All relative imports inside the serverless graph use explicit `.ts` extensions.
-- All shared modules used by functions are imported with explicit `.ts` extensions (native ESM).
+- All relative imports inside the serverless graph use the emitted `.js` extension
+  (e.g. `./validation.js`), never `.ts` or extensionless, even though the source is TypeScript.
+  Vercel transpiles to `.js` without rewriting specifiers, so `.ts` fails at runtime.
 - Type-only imports must use `import type { ... }`.
 - Handlers must not read files from the filesystem.

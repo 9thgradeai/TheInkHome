@@ -29,11 +29,17 @@
 
 ## Incident: `/api/stories` returning 500
 
-## Incident: `/api/stories` returning 500
+## Incident: `/api/*` returning 500 `FUNCTION_INVOCATION_FAILED`
 
-- Root cause: Vercel loads `api/*.ts` as native ESM (Node 24 type stripping); extension-less relative
-  imports throw `ERR_MODULE_NOT_FOUND`; value imports of TypeScript-only types throw a `SyntaxError`.
-- Fix: explicit `.ts` extensions on relative imports and `import type { ... }` for type-only imports.
+- Root cause: Vercel transpiles each function and its traced dependencies from `.ts` to `.js` but
+  leaves relative import specifiers verbatim. Using `.ts` (or extensionless) specifiers therefore
+  asks the Node ESM loader for a `.ts` file that does not exist at runtime → `ERR_MODULE_NOT_FOUND`
+  → `FUNCTION_INVOCATION_FAILED`. Local `tsx`/Vite hide this because they resolve `.ts` directly.
+- Fix: relative imports inside `api/*` and all server modules they reach (`src/lib/*`, `src/data/*`)
+  must use the **emitted `.js` extension** (e.g. `import { x } from "./validation.js"`). Type-only
+  imports use `import type { ... }` and are erased, so their extension is irrelevant.
+- Guard: `npm run build` only bundles the frontend; always smoke-test the deployed `/api/stories`
+  after a deploy (see `docs/TESTING.md`).
 
 ## Incident: AI assistant returning 503
 

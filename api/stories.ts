@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getPublicationStories } from "../src/lib/api-server.ts";
+import { getPublicationStories } from "../src/lib/api-server.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {

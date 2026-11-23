@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { runInkAssistant, getClientIp } from "../src/lib/ai-server.ts";
+import { runInkAssistant, getClientIp } from "../src/lib/ai-server.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("X-Content-Type-Options", "nosniff");

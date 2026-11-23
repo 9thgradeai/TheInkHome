@@ -2,13 +2,16 @@
   "version": 2,
   "functions": {
     "api/stories.ts": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": ["src/lib/**", "src/data/**", "src/types.ts"]
     },
     "api/about.ts": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": ["src/data/**", "src/types.ts"]
     },
     "api/ai.ts": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": ["src/lib/**", "src/types.ts"]
     },
     "api/health.ts": {
       "maxDuration": 10

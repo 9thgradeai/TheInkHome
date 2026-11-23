@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { FALLBACK_ABOUT } from "../src/data/fallbackAbout.ts";
+import { FALLBACK_ABOUT } from "../src/data/fallbackAbout.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {

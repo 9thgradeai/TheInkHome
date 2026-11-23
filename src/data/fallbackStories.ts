@@ -1,4 +1,4 @@
-import type { Story } from "../types.ts";
+import type { Story } from "../types.js";
 
 /**
  * Last-known-good snapshot of real published stories from the Medium feed.

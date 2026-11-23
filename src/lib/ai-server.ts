@@ -1,5 +1,5 @@
-import { AIRequestSchema, type AIRequest } from "./validation.ts";
-import { buildSystemPrompt, type AIContext } from "./knowledge.ts";
+import { AIRequestSchema, type AIRequest } from "./validation.js";
+import { buildSystemPrompt, type AIContext } from "./knowledge.js";
 
 /**
  * Shared Ink Assistant backend used by both the Express server (`server.ts`)
