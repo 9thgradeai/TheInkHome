@@ -40,6 +40,7 @@ export default function FollowSection() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-solid w-full justify-between"
+                style={{ color: "var(--on-ink)" }}
               >
                 Follow on Medium
                 <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
