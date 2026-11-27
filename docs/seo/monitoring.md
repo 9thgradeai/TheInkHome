@@ -29,3 +29,6 @@
 - Google Search Console verification
 - Bing Webmaster Tools
 - Analytics (GA4 or Plausible) — not yet wired
+
+## Follower counts
+Medium profile follower counts are sourced from src/data/fallbackAbout.ts (Farhan Kabir: 809, Dua Batool: 161). Medium blocks automated scraping (403), so these are manually refreshed. To automate, integrate an authorized Medium API or a scheduled human update. Story counts are fully dynamic from the live RSS feed.

@@ -10,7 +10,7 @@ export const FALLBACK_ABOUT = {
       role: "AI Engineer | Full-Stack Dev",
       bio: "A technology essayist, digital artisan, and design researcher exploring interfaces and spatial publishing mediums at The Ink Home.",
       avatar: "https://miro.medium.com/v2/resize:fit:2400/1*OonAmXM0uBzGf_KYL3s85w.png",
-      followers: 684,
+      followers: 809,
       mediumUrl: "https://medium.com/@farhankabir133"
     },
     {
@@ -19,7 +19,7 @@ export const FALLBACK_ABOUT = {
       role: "Published Book Author | Zoology Student",
       bio: "An inquisitive mind investigating life patterns, biological ecosystems, and deep narrative themes through published works.",
       avatar: "https://miro.medium.com/v2/resize:fit:2400/1*4o35ax2_LSaOtP-3Lfi0Eg.jpeg",
-      followers: 135,
+      followers: 161,
       mediumUrl: "https://medium.com/@dbatool242"
     }
   ],

@@ -155,6 +155,9 @@ export default function AboutPage({ about, storyCount, contributorCount, stories
                       <div className="mt-auto flex items-center justify-between border-t border-line pt-4 text-[12px]">
                         <span className="text-ink-faint">
                           {count} {count === 1 ? "story" : "stories"} published
+                          {typeof editor.followers === "number"
+                            ? ` · ${editor.followers.toLocaleString()} followers on Medium`
+                            : ""}
                         </span>
                         {editor.mediumUrl ? (
                           <a
