@@ -78,10 +78,10 @@ export default function StoryConstellation({ stories }: { stories: Story[] }) {
     >
       {fields.map((field, index) => {
         const gradients = [
-          "linear-gradient(120deg, #d8a13c, #e8b555, #f0c470)",
-          "linear-gradient(120deg, #8a5a0a, #d8a13c, #e8b555)",
-          "linear-gradient(120deg, #b3462f, #d8a13c, #f0c470)",
-          "linear-gradient(120deg, #4d515a, #8a5a0a, #d8a13c)",
+          "linear-gradient(120deg, var(--accent), var(--accent-ink))",
+          "linear-gradient(120deg, var(--accent-ink), var(--ink-soft))",
+          "linear-gradient(120deg, var(--ink-soft), var(--accent))",
+          "linear-gradient(120deg, var(--accent), var(--ink))",
         ];
         const gradient = gradients[index % gradients.length];
         return (
