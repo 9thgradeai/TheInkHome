@@ -77,13 +77,14 @@ export default function StoryConstellation({ stories }: { stories: Story[] }) {
       }`}
     >
       {fields.map((field, index) => {
-        const gradients = [
-          "linear-gradient(120deg, var(--accent), var(--accent-ink))",
-          "linear-gradient(120deg, var(--accent-ink), var(--ink-soft))",
-          "linear-gradient(120deg, var(--ink-soft), var(--accent))",
-          "linear-gradient(120deg, var(--accent), var(--ink))",
+        const palette = [
+          "var(--accent)",
+          "#c0543a",
+          "#3a5a7a",
+          "#6a7a4a",
+          "var(--accent-ink)",
         ];
-        const gradient = gradients[index % gradients.length];
+        const color = palette[index % palette.length];
         return (
           <span
             key={`${field.word}-${index}`}
@@ -97,11 +98,8 @@ export default function StoryConstellation({ stories }: { stories: Story[] }) {
               ["--drift" as string]: `${field.drift}vw`,
               ["--rot" as string]: `${field.rotation}deg`,
               ["--opa" as string]: field.opacity,
-              background: gradient,
-              WebkitBackgroundClip: "text",
-              backgroundClip: "text",
-              color: "transparent",
-              textShadow: "0 0 18px color-mix(in srgb, var(--accent) 35%, transparent)",
+              color,
+              textShadow: "0 0 14px color-mix(in srgb, currentColor 25%, transparent)",
             }}
           >
             {field.word}
