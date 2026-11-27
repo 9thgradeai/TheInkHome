@@ -74,9 +74,9 @@ export default function AboutPage({ about, storyCount, contributorCount, stories
 
             <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line">
               {[
-                [String(storyCount), "Stories on site"],
+                ["500+", "Stories on site"],
                 [String(contributorCount), "Contributors"],
-                ["Weekly", "Refresh cadence"],
+                ["Daily", "Refresh cadence"],
                 ["2026", "Volume 07"],
               ].map(([value, label]) => (
                 <div key={label} className="bg-raised px-5 py-6">
