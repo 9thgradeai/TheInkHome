@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Bot, Send, Sparkles, X, RotateCcw, ThumbsUp, ThumbsDown, Copy, Check } from "lucide-react";
+import { Bot, Send, X, RotateCcw, ThumbsUp, ThumbsDown, Copy, Check } from "lucide-react";
+import InkMark from "./ui/InkMark";
 import { askAI, AIMessage } from "../lib/ai";
 import { Story } from "../types";
 
@@ -203,7 +204,7 @@ export default function AIAssistant({ openByDefault = false, storyContext = null
             <motion.div ref={panelRef} tabIndex={-1} initial={{ opacity: 0, y: 40, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 40, scale: 0.96 }} transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }} className="fixed inset-x-0 bottom-0 z-[1000] flex h-[92vh] max-h-[92vh] flex-col overflow-hidden rounded-t-3xl border-t border-line bg-raised shadow-[var(--shadow-raise)] sm:inset-auto sm:bottom-6 sm:right-6 sm:h-[640px] sm:max-h-[85vh] sm:w-[420px] sm:rounded-3xl sm:border md:w-[460px]" role="dialog" aria-modal="true" aria-label="Ink Assistant">
               <div className="flex shrink-0 items-center justify-between border-b border-line bg-sunken/80 px-5 py-4 backdrop-blur">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 text-accent-ink"><Sparkles className="h-4 w-4" aria-hidden="true" /></div>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 text-accent-ink"><InkMark className="h-5 w-5" /></div>
                   <div>
                     <p className="font-display text-sm font-semibold tracking-tight text-ink">Ink Assistant</p>
                     <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent-ink">{storyContext ? `Reading: ${storyContext.title}` : "The Ink Home AI"}</p>

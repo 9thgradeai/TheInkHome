@@ -1,4 +1,4 @@
-import { ArrowUpRight, BookOpen, Quote, Sparkles } from "lucide-react";
+import { ArrowUpRight, BookOpen, Feather, Quote } from "lucide-react";
 import AuthorAvatar from "../components/AuthorAvatar";
 import Reveal from "../components/ui/Reveal";
 import { writerSlug } from "../components/home/WritersSection";
@@ -95,7 +95,7 @@ export default function AboutPage({ about, storyCount, contributorCount, stories
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
           <div className="rounded-2xl border border-line bg-raised p-6 lg:col-span-2">
             <p className="eyebrow">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> What we publish
+              <Feather className="h-3.5 w-3.5" aria-hidden="true" /> What we publish
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               {TOPICS.map((topic) => (
