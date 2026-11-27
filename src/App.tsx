@@ -278,6 +278,7 @@ function AppShell() {
                   about={about}
                   storyCount={stories.length}
                   contributorCount={contributors.size}
+                  stories={stories}
                 />
               </Page>
             ) : currentPath === "/privacy" ? (

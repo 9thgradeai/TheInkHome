@@ -84,9 +84,6 @@ export default function WritersPage({ editors, writers, stories }: WritersPagePr
                         )}
                         <span className="mt-2.5 block text-[12px] text-ink-faint">
                           {editor.count} {editor.count === 1 ? "story" : "stories"}
-                          {typeof editor.followers === "number"
-                            ? ` · ${editor.followers.toLocaleString()} followers on Medium`
-                            : ""}
                         </span>
                       </span>
                     </button>

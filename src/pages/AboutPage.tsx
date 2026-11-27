@@ -4,11 +4,13 @@ import Reveal from "../components/ui/Reveal";
 import { writerSlug } from "../components/home/WritersSection";
 import type { AboutData } from "../lib/usePublication";
 import { useNavigate } from "../router";
+import type { Story } from "../types";
 
 interface AboutPageProps {
   about: AboutData;
   storyCount: number;
   contributorCount: number;
+  stories?: Story[];
 }
 
 const TOPICS = [
@@ -22,7 +24,7 @@ const TOPICS = [
   "Personal stories",
 ];
 
-export default function AboutPage({ about, storyCount, contributorCount }: AboutPageProps) {
+export default function AboutPage({ about, storyCount, contributorCount, stories = [] }: AboutPageProps) {
   const navigate = useNavigate();
 
   return (
@@ -55,8 +57,9 @@ export default function AboutPage({ about, storyCount, contributorCount }: About
                   href="https://medium.com/the-ink-home"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn btn-solid"
-                >
+                className="btn btn-solid"
+                style={{ color: "var(--on-ink)" }}
+              >
                   Visit us on Medium
                   <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
                 </a>
@@ -129,47 +132,54 @@ export default function AboutPage({ about, storyCount, contributorCount }: About
             The editorial desk
           </h2>
           <ul className="mt-5 grid gap-6 border-t border-line pt-6 md:grid-cols-2">
-            {about.editors.map((editor, index) => (
-              <li key={editor.name}>
-                <Reveal delay={index * 0.06}>
-                  <article className="flex h-full flex-col rounded-2xl border border-line bg-raised p-6">
-                    <div className="flex items-center gap-4">
-                      <AuthorAvatar name={editor.name} src={editor.avatar} className="h-16 w-16 text-[16px]" />
-                      <div className="min-w-0">
-                        <h3 className="font-display text-[1.35rem] font-semibold leading-snug text-ink">
-                          {editor.name}
-                        </h3>
-                        <p className="mt-1 text-[13px] text-accent-ink">{editor.role}</p>
+            {about.editors.map((editor, index) => {
+              const count = stories.filter(
+                (story) => story.author.toLowerCase() === editor.name.toLowerCase(),
+              ).length;
+              return (
+                <li key={editor.name}>
+                  <Reveal delay={index * 0.06}>
+                    <article className="flex h-full flex-col rounded-2xl border border-line bg-raised p-6">
+                      <div className="flex items-center gap-4">
+                        <AuthorAvatar name={editor.name} src={editor.avatar} className="h-16 w-16 text-[16px]" />
+                        <div className="min-w-0">
+                          <h3 className="font-display text-[1.35rem] font-semibold leading-snug text-ink">
+                            {editor.name}
+                          </h3>
+                          <p className="mt-1 text-[13px] text-accent-ink">{editor.role}</p>
+                        </div>
                       </div>
-                    </div>
-                    {editor.bio && (
-                      <p className="mt-5 text-[13.5px] leading-relaxed text-ink-soft">{editor.bio}</p>
-                    )}
-                    <div className="mt-auto flex items-center justify-between border-t border-line pt-4 text-[12px]">
-                      {editor.mediumUrl ? (
-                        <a
-                          href={editor.mediumUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-ink-faint transition-colors hover:text-ink"
-                        >
-                          Medium profile <ArrowUpRight className="h-3 w-3" />
-                        </a>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/writer/${writerSlug(editor.name)}`)}
-                          className="text-ink-faint transition-colors hover:text-ink"
-                        >
-                          Stories by {editor.name.split(" ")[0]}
-                        </button>
+                      {editor.bio && (
+                        <p className="mt-5 text-[13.5px] leading-relaxed text-ink-soft">{editor.bio}</p>
                       )}
-                      <span className="text-ink-faint">Editorial desk</span>
-                    </div>
-                  </article>
-                </Reveal>
-              </li>
-            ))}
+                      <div className="mt-auto flex items-center justify-between border-t border-line pt-4 text-[12px]">
+                        <span className="text-ink-faint">
+                          {count} {count === 1 ? "story" : "stories"} published
+                        </span>
+                        {editor.mediumUrl ? (
+                          <a
+                            href={editor.mediumUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-ink-faint transition-colors hover:text-ink"
+                          >
+                            View on Medium <ArrowUpRight className="h-3 w-3" />
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/writer/${writerSlug(editor.name)}`)}
+                            className="text-ink-faint transition-colors hover:text-ink"
+                          >
+                            Stories by {editor.name.split(" ")[0]}
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  </Reveal>
+                </li>
+              );
+            })}
           </ul>
         </section>
 
