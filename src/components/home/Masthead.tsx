@@ -51,8 +51,9 @@ export default function Masthead({ storyCount, contributorCount, loading, storie
             transition={{ duration: 0.7, delay: 0.14, ease: EASE }}
             className="mt-6 max-w-[52ch] text-[17px] leading-relaxed text-ink-soft sm:text-lg"
           >
-            Essays on technology, culture, creativity and the quiet parts of being human. Written by
-            people who still believe a sentence is worth sitting with.
+            A home for stories that explore life, writing, technology, relationships, mental health, and
+            the moments that shape us. Thoughtful reflections, creative insights, and ideas that inspire
+            connection — where words truly feel at home.
           </motion.p>
 
           <motion.div
