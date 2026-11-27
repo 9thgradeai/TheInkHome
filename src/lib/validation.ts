@@ -6,7 +6,7 @@ export const ChatMessageSchema = z.object({
 });
 
 export const AIContextSchema = z.object({
-  page: z.enum(["reading", "browse", "profile"]).optional(),
+  page: z.enum(["reading", "browse", "profile", "writing"]).optional(),
   storyTitle: z.string().max(200).optional(),
   storyAuthor: z.string().max(120).optional(),
 });

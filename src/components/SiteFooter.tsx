@@ -1,155 +1,115 @@
-import React from "react";
-import { ArrowUpRight, ExternalLink } from "lucide-react";
+import { Rss } from "lucide-react";
 import { Logo } from "./Logo";
+import { useNavigate } from "../router";
 
-interface SiteFooterProps {
-  onNavigate: (path: string) => void;
-}
+const COLUMNS = [
+  {
+    title: "Read",
+    links: [
+      { label: "Latest stories", path: "/stories" },
+      { label: "Writers", path: "/writers" },
+      { label: "Reading list", path: "/saved" },
+      { label: "About", path: "/about" },
+    ],
+  },
+  {
+    title: "Write",
+    links: [
+      { label: "The Desk", path: "/desk" },
+      { label: "Submission guidelines", path: "/about" },
+      { label: "Editorial policy", path: "/editorial" },
+      { label: "Pitch us", href: "mailto:hello@theinkhome.com" },
+    ],
+  },
+  {
+    title: "Elsewhere",
+    links: [
+      { label: "Medium", href: "https://medium.com/the-ink-home" },
+      { label: "RSS feed", href: "/rss.xml" },
+      { label: "Sitemap", href: "/sitemap.xml" },
+      { label: "hello@theinkhome.com", href: "mailto:hello@theinkhome.com" },
+    ],
+  },
+];
 
-const FOOTER_LINKS = {
-  read: [
-    { label: "Latest stories", path: "/stories" },
-    { label: "Writers", path: "/writers" },
-    { label: "About", path: "/about" },
-  ],
-  publication: [
-    { label: "About us", path: "/about" },
-    { label: "Submit a story", path: "/about" },
-    { label: "Contact", href: "mailto:hello@theinkhome.com" },
-  ],
-  elsewhere: [
-    { label: "Medium", href: "https://medium.com/the-ink-home", external: true },
-    { label: "Email", href: "mailto:hello@theinkhome.com", external: false },
-  ],
-};
-
-export default function SiteFooter({ onNavigate }: SiteFooterProps) {
-  const read = (label: string, path: string) => (
-    <button key={`${label}-${path}`} onClick={() => onNavigate(path)} className="text-[13px] text-white/60 hover:text-white">
-      {label}
-    </button>
-  );
+export default function SiteFooter() {
+  const navigate = useNavigate();
 
   return (
-    <footer className="relative overflow-hidden border-t border-white/10 bg-[#060608]">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-64 opacity-40"
-        style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(200,255,77,0.12), transparent 70%)" }}
-      />
-
-      <div className="relative mx-auto max-w-7xl px-4 pb-8 pt-16 sm:px-8 sm:pt-20">
-        <div className="grid gap-12 lg:grid-cols-[1.2fr_1fr]">
+    <footer className="border-t border-line bg-sunken">
+      <div className="shell py-14 sm:py-16">
+        <div className="grid gap-10 lg:grid-cols-[1.3fr_1fr]">
           <div>
-            <Logo size={38} textColor="text-white" />
-            <p className="mt-6 max-w-md text-sm leading-relaxed text-white/60">
-              Where words feel at home. An independent publication of essays on technology, culture, creativity and
-              the quiet parts of being human — published on Medium.
+            <Logo />
+            <p className="mt-5 max-w-md text-[14.5px] leading-relaxed text-ink-soft">
+              Where words feel at home. An independent publication of essays on technology, culture,
+              creativity and the quiet parts of being human — published on Medium.
             </p>
-            <div className="mt-8">
+            <div className="mt-6 flex flex-wrap gap-3">
               <a
                 href="https://medium.com/the-ink-home"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group inline-flex items-center gap-2 rounded-full border border-white/20 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-white/85 transition-colors hover:border-white/50 hover:text-white"
+                className="btn btn-outline"
               >
-                Follow on Medium <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                Follow on Medium
               </a>
-              <p className="mt-3 font-mono text-[9px] uppercase tracking-[0.16em] text-white/40">
-                <a href="mailto:hello@theinkhome.com" className="hover:text-white">
-                  hello@theinkhome.com
-                </a>
-              </p>
+              <a href="/rss.xml" className="btn btn-quiet" target="_blank" rel="noopener noreferrer">
+                <Rss className="h-4 w-4" aria-hidden="true" /> RSS
+              </a>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
-            <div>
-              <h3 className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/40">Read</h3>
-              <ul className="mt-4 space-y-2.5">
-                {FOOTER_LINKS.read.map((link) => (
-                  <li key={link.label}>
-                    <button onClick={() => onNavigate(link.path)} className="text-[13px] text-white/60 hover:text-white">
-                      {link.label}
-                    </button>
-                  </li>
-                ))}
-                <li>
-                  <a
-                    href="https://medium.com/the-ink-home"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[13px] text-white/60 hover:text-white"
-                  >
-                    Medium archive
-                  </a>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/40">Publication</h3>
-              <ul className="mt-4 space-y-2.5">
-                {FOOTER_LINKS.publication.map((link) =>
-                  link.href ? (
+            {COLUMNS.map((column) => (
+              <div key={column.title}>
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
+                  {column.title}
+                </h2>
+                <ul className="mt-4 space-y-2.5">
+                  {column.links.map((link) => (
                     <li key={link.label}>
-                      <a href={link.href} className="text-[13px] text-white/60 hover:text-white">
-                        {link.label}
-                      </a>
+                      {"path" in link && link.path ? (
+                        <button
+                          type="button"
+                          onClick={() => navigate(link.path)}
+                          className="text-left text-[13.5px] text-ink-soft transition-colors hover:text-ink"
+                        >
+                          {link.label}
+                        </button>
+                      ) : (
+                        <a
+                          href={(link as { href: string }).href}
+                          target={(link as { href: string }).href.startsWith("http") ? "_blank" : undefined}
+                          rel={(link as { href: string }).href.startsWith("http") ? "noopener noreferrer" : undefined}
+                          className="text-[13.5px] text-ink-soft transition-colors hover:text-ink"
+                        >
+                          {link.label}
+                        </a>
+                      )}
                     </li>
-                  ) : (
-                    <li key={link.label}>
-                      <button onClick={() => onNavigate("/about")} className="text-[13px] text-white/60 hover:text-white">
-                        {link.label}
-                      </button>
-                    </li>
-                  ),
-                )}
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/40">Elsewhere</h3>
-              <ul className="mt-4 space-y-2.5">
-                {FOOTER_LINKS.elsewhere.map((link) => (
-                  <li key={link.label}>
-                    <a
-                      href={link.href}
-                      target={link.external ? "_blank" : undefined}
-                      rel={link.external ? "noopener noreferrer" : undefined}
-                      className="text-[13px] text-white/60 hover:text-white"
-                    >
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-5 flex gap-2">
-                <a
-                  href="https://medium.com/the-ink-home"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="The Ink Home on Medium"
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 text-white/45 transition-colors hover:border-white/30 hover:text-white"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                </a>
+                  ))}
+                </ul>
               </div>
-            </div>
+            ))}
           </div>
         </div>
 
-        <div className="mt-16 select-none overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="mt-14 select-none overflow-hidden border-t border-line pt-8"
+        >
           <p
-            aria-hidden="true"
-            className="whitespace-nowrap text-center font-display text-[15vw] font-black uppercase leading-[0.8] tracking-tighter text-transparent sm:text-[13vw]"
-            style={{ WebkitTextStroke: "1px rgba(255,255,255,0.14)" }}
+            className="whitespace-nowrap text-center font-display text-[14vw] font-semibold uppercase leading-[0.85] tracking-[-0.04em] text-transparent sm:text-[12vw]"
+            style={{ WebkitTextStroke: "1px var(--line-strong)" }}
           >
             The Ink Home
           </p>
         </div>
 
-        <div className="mt-8 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-center font-mono text-[9px] uppercase tracking-[0.18em] text-white/30 sm:flex-row sm:text-left">
+        <div className="mt-8 flex flex-col items-center justify-between gap-3 border-t border-line pt-6 text-center text-[12px] text-ink-faint sm:flex-row sm:text-left">
           <span>© 2026 The Ink Home. Words feel at home here.</span>
-          <div className="flex gap-5">
+          <nav aria-label="Legal" className="flex flex-wrap justify-center gap-5">
             {[
               { label: "Privacy", path: "/privacy" },
               { label: "Terms", path: "/terms" },
@@ -157,13 +117,14 @@ export default function SiteFooter({ onNavigate }: SiteFooterProps) {
             ].map((item) => (
               <button
                 key={item.label}
-                onClick={() => onNavigate(item.path)}
-                className="transition-colors hover:text-white/70"
+                type="button"
+                onClick={() => navigate(item.path)}
+                className="transition-colors hover:text-ink"
               >
                 {item.label}
               </button>
             ))}
-          </div>
+          </nav>
         </div>
       </div>
     </footer>

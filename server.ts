@@ -14,6 +14,7 @@ import {
 } from "./src/lib/api-server.ts";
 import { FALLBACK_ABOUT } from "./src/data/fallbackAbout.ts";
 import { runInkAssistant, getClientIp } from "./src/lib/ai-server.ts";
+import { buildSitemap } from "./src/lib/sitemap.ts";
 
 dotenv.config();
 
@@ -69,12 +70,113 @@ function saveDiskCache(): void {
   }
 }
 
+const SITE_URL = "https://theinkhome.live";
+const DEFAULT_IMAGE = `${SITE_URL}/assets/og-image.jpg`;
+
+interface RouteMeta {
+  title: string;
+  description: string;
+  image: string;
+  type: "website" | "article";
+  canonical: string;
+  robots?: string;
+  jsonLd?: Record<string, unknown>;
+}
+
+/** Static routes get their own title, description and structured data. */
+function routeMeta(pathname: string): RouteMeta | null {
+  const staticRoutes: Record<string, { title: string; description: string }> = {
+    "/": {
+      title: "The Ink Home — Where Words Feel at Home",
+      description:
+        "An independent publication of essays on technology, culture, creativity, relationships and the quiet parts of being human.",
+    },
+    "/stories": {
+      title: "Stories | The Ink Home",
+      description:
+        "Every essay in The Ink Home, searchable across titles, bylines, topics and full text.",
+    },
+    "/writers": {
+      title: "Writers | The Ink Home",
+      description: "Meet the writers and editors behind The Ink Home.",
+    },
+    "/about": {
+      title: "About | The Ink Home",
+      description: "What The Ink Home publishes, who edits it, and how to submit your writing.",
+    },
+    "/desk": {
+      title: "The Desk | The Ink Home",
+      description: "A local-first drafting space for preparing work before it goes out.",
+    },
+    "/saved": {
+      title: "Reading list | The Ink Home",
+      description: "Stories you saved or liked, kept on this device.",
+    },
+    "/privacy": {
+      title: "Privacy | The Ink Home",
+      description: "How The Ink Home handles your data.",
+    },
+    "/terms": {
+      title: "Terms | The Ink Home",
+      description: "Terms of use for The Ink Home.",
+    },
+    "/editorial": {
+      title: "Editorial policy | The Ink Home",
+      description: "How The Ink Home chooses, edits and credits what it publishes.",
+    },
+  };
+
+  const entry = staticRoutes[pathname];
+  if (entry) {
+    return {
+      ...entry,
+      image: DEFAULT_IMAGE,
+      type: "website",
+      canonical: `${SITE_URL}${pathname}`,
+      jsonLd:
+        pathname === "/"
+          ? {
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "The Ink Home",
+              url: SITE_URL,
+              description: entry.description,
+              potentialAction: {
+                "@type": "SearchAction",
+                target: `${SITE_URL}/stories?q={search_term_string}`,
+                "query-input": "required name=search_term_string",
+              },
+            }
+          : undefined,
+    };
+  }
+
+  const writerMatch = pathname.match(/^\/writer\/([^/]+)$/);
+  if (writerMatch) {
+    const name = decodeURIComponent(writerMatch[1])
+      .split("-")
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+    return {
+      title: `${name || "Writer"} | The Ink Home`,
+      description: `Stories and profile for ${name || "this writer"} at The Ink Home.`,
+      image: DEFAULT_IMAGE,
+      type: "website",
+      canonical: `${SITE_URL}${pathname}`,
+    };
+  }
+
+  return null;
+}
+
 async function serveSPAWithSEO(
   req: express.Request,
   res: express.Response,
   vite?: any,
 ): Promise<void> {
   const slug = req.params.slug;
+  const pathname = req.path;
 
   let stories: Awaited<ReturnType<typeof getPublicationStories>>["stories"] = [];
   try {
@@ -87,15 +189,59 @@ async function serveSPAWithSEO(
   }
 
   const story = slug ? stories.find((s) => s.slug === slug) : undefined;
-  const title = story ? `${story.title} — The Ink Home` : "The Ink Home — Where Words Feel at Home";
-  const description = story
-    ? (story.description || "").replace(/\s+/g, " ").trim().slice(0, 160)
-    : "The Ink Home is an independent Medium publication of essays on technology, culture, creativity, relationships and the quiet parts of being human.";
-  const url = story
-    ? `https://theinkhome.live/story/${story.slug}`
-    : `https://theinkhome.live${req.originalUrl}`;
-  const image = story?.cover || "https://theinkhome.live/assets/The_Ink_Home.webp";
+  const meta = routeMeta(pathname);
 
+  let title: string;
+  let description: string;
+  let image: string;
+  let type: "website" | "article";
+  let canonical: string;
+  let robots: string | undefined;
+  let jsonLd: Record<string, unknown> | undefined;
+
+  if (story) {
+    title = `${story.title} — The Ink Home`;
+    description = (story.description || "A story from The Ink Home on Medium.")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 160);
+    image = story.cover || DEFAULT_IMAGE;
+    type = "article";
+    canonical = `${SITE_URL}/story/${story.slug}`;
+    jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: story.title,
+      description,
+      image,
+      datePublished: new Date(story.pubDate).toISOString(),
+      author: { "@type": "Person", name: story.author },
+      publisher: { "@type": "Organization", name: "The Ink Home", url: SITE_URL },
+      mainEntityOfPage: canonical,
+    };
+  } else if (meta) {
+    ({ title, description, image, type, canonical, jsonLd } = meta);
+    robots = meta.robots;
+  } else if (slug) {
+    // A story URL we could not resolve: let the client render the not-found state,
+    // but keep it out of the index so crawlers do not accumulate dead links.
+    title = "Story not found | The Ink Home";
+    description = "This story could not be found in The Ink Home's archive.";
+    image = DEFAULT_IMAGE;
+    type = "website";
+    canonical = `${SITE_URL}${pathname}`;
+    robots = "noindex, follow";
+  } else {
+    title = "The Ink Home — Where Words Feel at Home";
+    description =
+      "An independent publication of essays on technology, culture, creativity, relationships and the quiet parts of being human.";
+    image = DEFAULT_IMAGE;
+    type = "website";
+    canonical = `${SITE_URL}${pathname}`;
+    robots = "noindex, follow";
+  }
+
+  const url = canonical;
   const safeTitle = escapeHtml(title);
   const safeDescription = escapeHtml(description);
   const safeUrl = escapeHtml(url);
@@ -112,9 +258,11 @@ async function serveSPAWithSEO(
   const metaTags = `
     <title>${safeTitle}</title>
     <meta name="description" content="${safeDescription}" />
+    <link rel="canonical" href="${safeUrl}" />
+    ${robots ? `<meta name="robots" content="${escapeHtml(robots)}" />` : ""}
     <meta property="og:title" content="${safeTitle}" />
     <meta property="og:description" content="${safeDescription}" />
-    <meta property="og:type" content="${story ? "article" : "website"}" />
+    <meta property="og:type" content="${type}" />
     <meta property="og:url" content="${safeUrl}" />
     <meta property="og:image" content="${safeImage}" />
     <meta property="og:site_name" content="The Ink Home" />
@@ -124,10 +272,30 @@ async function serveSPAWithSEO(
     <meta name="twitter:image" content="${safeImage}" />
     ${story ? `<meta property="article:published_time" content="${escapeHtml(story.pubDate)}" />` : ""}
     ${story ? `<meta name="author" content="${escapeHtml(story.author)}" />` : ""}
+    ${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>` : ""}
   `;
 
   const html = template.replace(/<title>[\s\S]*?<\/title>/i, metaTags);
   res.status(200).set({ "Content-Type": "text/html" }).end(html);
+}
+
+/** Sitemap covering the static routes and every story in the live archive. */
+async function serveSitemap(_req: express.Request, res: express.Response): Promise<void> {
+  try {
+    const xml = await buildSitemap();
+    res
+      .set({
+        "Content-Type": "application/xml; charset=utf-8",
+        "Cache-Control": "public, max-age=3600",
+      })
+      .status(200)
+      .send(xml);
+  } catch (error) {
+    logger.error("Sitemap generation failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).type("text/plain").send("Sitemap unavailable");
+  }
 }
 
 async function startServer(): Promise<void> {
@@ -242,6 +410,8 @@ async function startServer(): Promise<void> {
     app.use("/fonts", express.static(path.join(process.cwd(), "dist", "fonts"), { maxAge: "1y", immutable: true }));
     app.use(express.static(path.join(process.cwd(), "dist"), { maxAge: "1h", index: false }));
   }
+
+  app.get("/sitemap.xml", (req, res) => void serveSitemap(req, res));
 
   app.get("/story/:slug", (req, res) => void serveSPAWithSEO(req, res, vite));
   app.get("/stories", (req, res) => void serveSPAWithSEO(req, res, vite));

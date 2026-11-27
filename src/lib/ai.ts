@@ -5,7 +5,7 @@ export interface AIMessage {
 
 export interface AIContext {
   story?: { title: string; author: string } | null;
-  page?: "reading" | "browse" | "profile";
+  page?: "reading" | "browse" | "profile" | "writing";
 }
 
 export interface AIAssistantOptions {

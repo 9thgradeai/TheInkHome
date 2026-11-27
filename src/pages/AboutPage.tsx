@@ -1,244 +1,189 @@
-import React from "react";
-import { motion } from "motion/react";
 import { ArrowUpRight, BookOpen, Quote, Sparkles } from "lucide-react";
-
-interface AboutData {
-  description: string;
-  officialWebsite?: string;
-  editors: Array<{
-    name: string;
-    role: string;
-    bio?: string;
-    avatar?: string;
-    followers?: number;
-    mediumUrl?: string;
-  }>;
-  writers: Array<{
-    name: string;
-    role: string;
-    bio?: string;
-    avatar?: string;
-  }>;
-}
+import AuthorAvatar from "../components/AuthorAvatar";
+import Reveal from "../components/ui/Reveal";
+import { writerSlug } from "../components/home/WritersSection";
+import type { AboutData } from "../lib/usePublication";
+import { useNavigate } from "../router";
 
 interface AboutPageProps {
   about: AboutData;
   storyCount: number;
   contributorCount: number;
-  onNavigate: (path: string) => void;
 }
 
-export default function AboutPage({
-  about,
-  storyCount,
-  contributorCount,
-  onNavigate,
-}: AboutPageProps) {
+const TOPICS = [
+  "Essays",
+  "Technology",
+  "Culture",
+  "Creativity",
+  "Productivity",
+  "Relationships",
+  "Mental health",
+  "Personal stories",
+];
+
+export default function AboutPage({ about, storyCount, contributorCount }: AboutPageProps) {
+  const navigate = useNavigate();
+
   return (
-    <section className="min-h-screen bg-[#08080a] text-white">
-      <div className="px-4 pb-40 pt-32 sm:px-8 sm:pb-48">
-        <div className="mx-auto max-w-7xl">
-          <div
-            className="relative overflow-hidden border-y border-white/10 bg-[#0a0b0d] py-24 sm:py-32"
-          >
-            <div
-              className="pointer-events-none absolute inset-0 opacity-70"
-              style={{
-                background:
-                  "radial-gradient(ellipse 50% 70% at 90% 0%, rgba(200,255,77,0.10), transparent 60%), radial-gradient(ellipse 40% 60% at 0% 100%, rgba(167,139,250,0.10), transparent 60%)",
-              }}
-            />
-            <div className="relative mx-auto grid max-w-7xl gap-12 px-4 sm:px-8 lg:grid-cols-[1.1fr_0.9fr]">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7 }}
-                className="space-y-8"
-              >
-                <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.24em] text-[#c8ff4d]">
-                  <BookOpen className="h-3 w-3" /> About the publication
-                </div>
-                <h2 className="mt-4 max-w-2xl font-display text-4xl font-black leading-[0.98] tracking-[-0.03em] text-white sm:text-6xl">
-                  A home for writing that takes its time.
-                </h2>
-                <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-white/50">
-                  {about.description}
+    <section className="pb-28 pt-28 sm:pt-36">
+      <div className="shell">
+        <header className="border-b border-line pb-12">
+          <p className="eyebrow">
+            <BookOpen className="h-3.5 w-3.5" aria-hidden="true" /> About the publication
+          </p>
+          <div className="mt-4 grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
+            <div>
+              <h1 className="max-w-[16ch] font-display text-[clamp(2.25rem,5.5vw,3.75rem)] font-semibold leading-[1] tracking-[-0.035em] text-ink">
+                A home for writing that takes its time.
+              </h1>
+              <p className="mt-6 max-w-[56ch] text-[15.5px] leading-relaxed text-ink-soft">
+                {about.description}
+              </p>
+              <blockquote className="mt-8 border-l-2 border-accent pl-6">
+                <Quote className="h-4 w-4 text-accent-ink" aria-hidden="true" />
+                <p className="mt-3 max-w-[40ch] font-serif text-[clamp(1.25rem,2.4vw,1.6rem)] italic leading-snug text-ink">
+                  Good writing is a form of hospitality. We keep the light on, the chair warm, and the
+                  page open.
                 </p>
-                <blockquote className="mt-8 border-l-2 border-[#c8ff4d] pl-5">
-                  <Quote className="h-4 w-4 text-[#c8ff4d]" />
-                  <p className="mt-2 max-w-lg font-display text-xl font-medium italic leading-snug text-white/80 sm:text-2xl">
-                    Good writing is a form of hospitality. We keep the light on,
-                    the chair warm, and the page open.
-                  </p>
-                  <footer className="mt-3 font-mono text-[9px] uppercase tracking-[0.18em] text-white/30">
-                    The Ink Home editorial desk
-                  </footer>
-                </blockquote>
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <a
-                    href="https://medium.com/the-ink-home"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group flex items-center gap-2 rounded-full bg-white px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-[#c8ff4d]"
-                  >
-                    Visit us on Medium
-                    <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                  </a>
-                  <button
-                    onClick={() => onNavigate("/stories")}
-                    className="flex items-center gap-2 rounded-full border border-white/15 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-white/70 transition-colors hover:border-white/40 hover:text-white"
-                  >
-                    Browse the archive
-                  </button>
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.1 }}
-                className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10"
-              >
-                {[
-                  [String(storyCount), "Stories on site"],
-                  [String(contributorCount), "Contributors"],
-                  ["10 min", "Refresh cadence"],
-                  ["2026", "Volume 07"],
-                ].map(([value, label]) => (
-                  <div key={label} className="bg-[#0a0b0d] px-5 py-6 sm:px-6 sm:py-7">
-                    <div className="font-display text-3xl font-bold text-white sm:text-4xl">
-                      {value}
-                    </div>
-                    <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.16em] text-white/35">
-                      {label}
-                    </div>
-                  </div>
-                ))}
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.2 }}
-                className="mt-8 rounded-2xl border border-white/10 bg-[#0b0c0f] p-5 sm:p-7"
-              >
-                <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.18em] text-white/35">
-                  <Sparkles className="h-3 w-3 text-[#c8ff4d]" /> What we publish
-                </div>
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {[
-                    "Essays",
-                    "Technology",
-                    "Culture",
-                    "Creativity",
-                    "Productivity",
-                    "Relationships",
-                    "Mental health",
-                    "Personal stories",
-                  ].map((topic) => (
-                    <span
-                      key={topic}
-                      className="rounded-full border border-white/10 px-2.5 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-white/45"
-                    >
-                      {topic}
-                    </span>
-                  ))}
-                </div>
-                <p className="mt-4 text-[12px] leading-relaxed text-white/35">
-                  Have something honest to say? We read every submission. Write
-                  to us at{" "}
-                  <a
-                    href="mailto:hello@theinkhome.com"
-                    className="text-white/60 hover:text-[#c8ff4d]"
-                  >
-                    hello@theinkhome.com
-                  </a>
-                  .
-                </p>
-              </motion.div>
-            </div>
-          </div>
-
-          {/* Editors */}
-          <section className="mt-20">
-            <div className="flex items-center gap-3 mb-10">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#c8ff4d]/10 text-[#c8ff4d]">
-                <Sparkles className="h-5 w-5" />
-              </div>
-              <h2 className="font-display text-2xl font-bold tracking-tight text-white sm:text-3xl">
-                The editorial desk
-              </h2>
-            </div>
-            <div className="grid gap-6 md:grid-cols-2">
-              {about.editors.map((editor, index) => (
-                <motion.div
-                  key={editor.name}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: index * 0.08 }}
-                  className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c0f] p-6 sm:p-8 transition-colors hover:border-white/25"
+                <footer className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">
+                  The Ink Home editorial desk
+                </footer>
+              </blockquote>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <a
+                  href="https://medium.com/the-ink-home"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-solid"
                 >
-                  <div className="relative mt-6 flex items-center gap-4">
-                    <div
-                      className="h-16 w-16 rounded-full border border-white/20 overflow-hidden bg-[#0a0b0d]"
-                    >
-                      {editor.avatar ? (
-                        <img
-                          src={editor.avatar}
-                          alt={editor.name}
-                          className="h-full w-full object-cover"
-                          decoding="async"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[#c8ff4d]/20 to-[#a78bfa]/20 text-[#c8ff4d] text-[16px] font-bold">
-                          {editor.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .slice(0, 2)
-                            .toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-display text-2xl font-bold tracking-tight text-white">
-                        {editor.name}
-                      </h3>
-                      <p className="mt-0.5 text-[11px] leading-snug text-[#c8ff4d]">
-                        {editor.role}
-                      </p>
-                    </div>
-                  </div>
-                  {editor.bio && (
-                    <p className="relative mt-5 text-[13px] leading-relaxed text-white/45">
-                      {editor.bio}
-                    </p>
-                  )}
-                  <div className="relative mt-auto flex items-center justify-between border-t border-white/10 pt-4">
-                    <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-white/30">
-                      Editorial desk
-                    </span>
-                    {editor.mediumUrl ? (
-                      <a
-                        href={editor.mediumUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.16em] text-white/55 transition-colors hover:text-[#c8ff4d]"
-                      >
-                        Medium profile <ArrowUpRight className="h-3 w-3" />
-                      </a>
-                    ) : (
-                      <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-white/25 pl-8">
-                        Ink Home
-                      </span>
-                    )}
-                  </div>
-                </motion.div>
+                  Visit us on Medium
+                  <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+                </a>
+                <button type="button" onClick={() => navigate("/stories")} className="btn btn-outline">
+                  Browse the archive
+                </button>
+                <button type="button" onClick={() => navigate("/desk")} className="btn btn-outline">
+                  Open The Desk
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line">
+              {[
+                [String(storyCount), "Stories on site"],
+                [String(contributorCount), "Contributors"],
+                ["Weekly", "Refresh cadence"],
+                ["2026", "Volume 07"],
+              ].map(([value, label]) => (
+                <div key={label} className="bg-raised px-5 py-6">
+                  <p className="font-display text-[1.75rem] font-semibold leading-none tabular-nums text-ink">
+                    {value}
+                  </p>
+                  <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
+                    {label}
+                  </p>
+                </div>
               ))}
             </div>
-          </section>
+          </div>
+        </header>
+
+        <div className="mt-10 grid gap-6 lg:grid-cols-3">
+          <div className="rounded-2xl border border-line bg-raised p-6 lg:col-span-2">
+            <p className="eyebrow">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> What we publish
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {TOPICS.map((topic) => (
+                <span key={topic} className="chip">
+                  {topic}
+                </span>
+              ))}
+            </div>
+            <p className="mt-5 text-[13.5px] leading-relaxed text-ink-soft">
+              Have something honest to say? We read every submission. Write to us at{" "}
+              <a
+                href="mailto:hello@theinkhome.com"
+                className="text-ink underline decoration-accent underline-offset-4"
+              >
+                hello@theinkhome.com
+              </a>{" "}
+              with a short introduction and a link to your writing.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-line bg-raised p-6">
+            <p className="eyebrow">At a glance</p>
+            <ul className="mt-4 space-y-3 text-[13.5px] leading-relaxed text-ink-soft">
+              <li>Independent and ad-light.</li>
+              <li>Essays sourced from the publication's own Medium feed.</li>
+              <li>Saved stories and Desk drafts stay in your browser.</li>
+              <li>Read at your own pace — no streaks, no scores.</li>
+            </ul>
+          </div>
         </div>
+
+        <section className="mt-16">
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
+            The editorial desk
+          </h2>
+          <ul className="mt-5 grid gap-6 border-t border-line pt-6 md:grid-cols-2">
+            {about.editors.map((editor, index) => (
+              <li key={editor.name}>
+                <Reveal delay={index * 0.06}>
+                  <article className="flex h-full flex-col rounded-2xl border border-line bg-raised p-6">
+                    <div className="flex items-center gap-4">
+                      <AuthorAvatar name={editor.name} src={editor.avatar} className="h-16 w-16 text-[16px]" />
+                      <div className="min-w-0">
+                        <h3 className="font-display text-[1.35rem] font-semibold leading-snug text-ink">
+                          {editor.name}
+                        </h3>
+                        <p className="mt-1 text-[13px] text-accent-ink">{editor.role}</p>
+                      </div>
+                    </div>
+                    {editor.bio && (
+                      <p className="mt-5 text-[13.5px] leading-relaxed text-ink-soft">{editor.bio}</p>
+                    )}
+                    <div className="mt-auto flex items-center justify-between border-t border-line pt-4 text-[12px]">
+                      {editor.mediumUrl ? (
+                        <a
+                          href={editor.mediumUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-ink-faint transition-colors hover:text-ink"
+                        >
+                          Medium profile <ArrowUpRight className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/writer/${writerSlug(editor.name)}`)}
+                          className="text-ink-faint transition-colors hover:text-ink"
+                        >
+                          Stories by {editor.name.split(" ")[0]}
+                        </button>
+                      )}
+                      <span className="text-ink-faint">Editorial desk</span>
+                    </div>
+                  </article>
+                </Reveal>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <nav aria-label="Policies" className="mt-16 flex flex-wrap gap-3 border-t border-line pt-8">
+          <button type="button" onClick={() => navigate("/privacy")} className="btn btn-outline">
+            Privacy
+          </button>
+          <button type="button" onClick={() => navigate("/terms")} className="btn btn-outline">
+            Terms
+          </button>
+          <button type="button" onClick={() => navigate("/editorial")} className="btn btn-outline">
+            Editorial policy
+          </button>
+        </nav>
       </div>
     </section>
   );

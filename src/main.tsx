@@ -20,7 +20,7 @@ window.addEventListener('unhandledrejection', (e) => {
 
 const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
   const [hasError, setHasError] = React.useState(false);
-  const [errorId] = React.useState(() => Math.random().toString(36).substr(2, 9));
+  const [errorId] = React.useState(() => Math.random().toString(36).slice(2, 11));
   
   React.useEffect(() => {
     const handle = (e: ErrorEvent) => {
@@ -46,41 +46,55 @@ const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
 
   if (hasError) {
     return (
-      <div style={{ 
-        padding: '40px 20px', 
-        color: '#ffffff', 
-        background: '#08080a', 
-        fontFamily: 'Inter, system-ui, sans-serif',
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        textAlign: 'center'
-      }}>
-        <h1 style={{ fontSize: '24px', marginBottom: '16px', fontWeight: '600' }}>Something went wrong</h1>
-        <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '24px', maxWidth: '400px' }}>
-          We're sorry for the inconvenience. Please refresh the page to try again.
+      <div
+        style={{
+          padding: "40px 20px",
+          color: "var(--ink)",
+          background: "var(--paper)",
+          fontFamily: '"Inter", system-ui, sans-serif',
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+        }}
+      >
+        <h1
+          style={{
+            fontSize: "28px",
+            margin: "0 0 16px",
+            fontWeight: 600,
+            letterSpacing: "-0.02em",
+          }}
+        >
+          Something went wrong
+        </h1>
+        <p style={{ color: "var(--ink-soft)", margin: "0 0 24px", maxWidth: "420px", lineHeight: 1.6 }}>
+          The page hit an unexpected error. A refresh usually clears it — your saved stories and
+          drafts stay on this device.
         </p>
         {isProd && (
-          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
+          <p style={{ fontSize: "12px", color: "var(--ink-faint)", fontFamily: "monospace" }}>
             Error ID: {errorId}
           </p>
         )}
-        <button 
-          onClick={() => window.location.reload()} 
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
           style={{
-            marginTop: '24px',
-            padding: '10px 24px',
-            background: '#c8ff4d',
-            color: '#000000',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: '500'
+            marginTop: "24px",
+            padding: "11px 26px",
+            background: "var(--accent)",
+            color: "var(--on-accent)",
+            border: "none",
+            borderRadius: "999px",
+            cursor: "pointer",
+            fontWeight: 600,
+            fontSize: "14px",
           }}
         >
-          Refresh Page
+          Refresh page
         </button>
       </div>
     );

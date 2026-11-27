@@ -1,27 +1,29 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowUpRight, Menu, X } from "lucide-react";
+import { Bookmark, Menu, Moon, Sun, X } from "lucide-react";
 import { Logo } from "./Logo";
-import Link from "./Link";
+import { useNavigate, usePath } from "../router";
+import { getTheme, setTheme, type ThemeName } from "../lib/theme";
 
-interface SiteHeaderProps {
-  onNavigate: (path: string) => void;
-  onOpenStory?: () => void;
-}
-
-const links = [
+const LINKS = [
   { label: "Stories", href: "/stories" },
   { label: "Writers", href: "/writers" },
+  { label: "The Desk", href: "/desk" },
   { label: "About", href: "/about" },
 ];
 
-export default function SiteHeader({ onNavigate, onOpenStory }: SiteHeaderProps) {
+export default function SiteHeader() {
+  const navigate = useNavigate();
+  const path = usePath();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [theme, setThemeState] = useState<ThemeName>("paper");
   const menuRef = useRef<HTMLDivElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
+    setThemeState(getTheme());
+    const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -30,25 +32,30 @@ export default function SiteHeader({ onNavigate, onOpenStory }: SiteHeaderProps)
   useEffect(() => {
     if (!menuOpen) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuOpen(false);
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        toggleRef.current?.focus();
+      }
+      if (event.key === "Tab") {
+        const node = menuRef.current;
+        if (!node) return;
+        const focusables = Array.from(
+          node.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'),
+        ).filter((el) => el.offsetParent !== null);
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [menuOpen]);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const node = menuRef.current;
-    if (!node) return;
-    const focusables = Array.from(
-      node.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      ),
-    ).filter((element) => element.offsetParent !== null);
-    if (focusables.length > 0) focusables[0].focus();
-    return () => {
-      // restore nothing here; caller keeps control
-    };
   }, [menuOpen]);
 
   useEffect(() => {
@@ -58,58 +65,109 @@ export default function SiteHeader({ onNavigate, onOpenStory }: SiteHeaderProps)
     };
   }, [menuOpen]);
 
-  const go = (path: string) => {
+  useEffect(() => {
     setMenuOpen(false);
-    onNavigate(path);
+  }, [path]);
+
+  const toggleTheme = () => {
+    const next: ThemeName = theme === "paper" ? "night" : "paper";
+    setTheme(next);
+    setThemeState(next);
   };
+
+  const go = (to: string) => {
+    setMenuOpen(false);
+    navigate(to);
+  };
+
+  const isActive = (href: string) => path === href || (href !== "/" && path.startsWith(`${href}/`));
 
   return (
     <>
       <header
-        className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${
-          scrolled ? "border-b border-white/10 bg-[#08080a]/85 backdrop-blur-xl" : "border-b border-transparent"
+        className={`fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,backdrop-filter] duration-300 ${
+          scrolled
+            ? "border-b border-line bg-paper/90 backdrop-blur-xl"
+            : "border-b border-transparent bg-transparent"
         }`}
       >
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:h-[72px] sm:px-8">
-          <button onClick={() => go("/")} className="flex items-center text-left" aria-label="The Ink Home — home">
-            <Logo size={34} textColor="text-white" />
-          </button>
+        <div className="shell flex h-16 items-center justify-between gap-4 sm:h-[72px]">
+          <Logo />
 
-          <nav className="hidden items-center gap-7 md:flex" aria-label="Primary">
-            {links.map((link) => (
-              <Link
+          <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
+            {LINKS.map((link) => (
+              <a
                 key={link.href}
-                to={link.href}
-                onNavigate={go}
-                className="text-[11px] font-medium uppercase tracking-[0.16em] text-white/55 transition-colors hover:text-white"
+                href={link.href}
+                onClick={(event) => {
+                  event.preventDefault();
+                  go(link.href);
+                }}
+                aria-current={isActive(link.href) ? "page" : undefined}
+                className={`relative rounded-full px-3.5 py-2 text-[13px] font-medium transition-colors ${
+                  isActive(link.href)
+                    ? "text-ink"
+                    : "text-ink-soft hover:text-ink"
+                }`}
               >
                 {link.label}
-              </Link>
+                {isActive(link.href) && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-x-3.5 -bottom-0.5 h-px bg-accent"
+                  />
+                )}
+              </a>
             ))}
           </nav>
 
-          <div className="hidden items-center gap-3 md:flex">
-            <a
-              href="https://medium.com/the-ink-home"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-[#c8ff4d]"
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === "paper" ? "Switch to night reading theme" : "Switch to paper reading theme"}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-transparent text-ink-soft transition-colors hover:border-line hover:text-ink"
             >
-              Read on Medium
-              <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-            </a>
-          </div>
+              {theme === "paper" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setMenuOpen((open) => !open)}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white md:hidden"
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            aria-controls="site-menu"
-            aria-expanded={menuOpen}
-          >
-            {menuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          </button>
+            <a
+              href="/saved"
+              onClick={(event) => {
+                event.preventDefault();
+                go("/saved");
+              }}
+              aria-label="Reading list"
+              className={`hidden h-10 w-10 items-center justify-center rounded-full border border-transparent transition-colors hover:border-line sm:flex ${
+                path === "/saved" ? "text-ink" : "text-ink-soft"
+              }`}
+            >
+              <Bookmark className="h-4 w-4" />
+            </a>
+
+            <a
+              href="/stories"
+              onClick={(event) => {
+                event.preventDefault();
+                go("/stories");
+              }}
+              className="btn btn-solid hidden md:inline-flex"
+            >
+              Read the latest
+            </a>
+
+            <button
+              ref={toggleRef}
+              type="button"
+              onClick={() => setMenuOpen((open) => !open)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-ink md:hidden"
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-controls="site-menu"
+              aria-expanded={menuOpen}
+            >
+              {menuOpen ? <X className="h-4.5 w-4.5" /> : <Menu className="h-4.5 w-4.5" />}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -118,41 +176,49 @@ export default function SiteHeader({ onNavigate, onOpenStory }: SiteHeaderProps)
           <motion.div
             id="site-menu"
             ref={menuRef}
-            className="fixed inset-0 z-40 flex flex-col bg-[#08080a] px-6 pb-8 pt-24 md:hidden"
+            className="fixed inset-0 z-40 flex flex-col bg-paper px-5 pb-8 pt-24 md:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
           >
-            <div className="mt-4 flex flex-col divide-y divide-white/10 border-y border-white/10">
-              {links.map((link) => (
+            <nav aria-label="Mobile" className="flex flex-col border-t border-line">
+              {LINKS.map((link) => (
                 <button
                   key={link.href}
+                  type="button"
                   onClick={() => go(link.href)}
-                  className="flex items-center justify-between py-5 text-left"
+                  aria-current={isActive(link.href) ? "page" : undefined}
+                  className="flex items-center justify-between border-b border-line py-5 text-left"
                 >
-                  <span className="font-display text-2xl font-semibold text-white">{link.label}</span>
-                  <ArrowUpRight className="h-4 w-4 text-white/40" />
+                  <span className="font-display text-2xl font-semibold text-ink">{link.label}</span>
+                  <span aria-hidden="true" className="text-ink-faint">
+                    →
+                  </span>
                 </button>
               ))}
-              <a
-                href="https://medium.com/the-ink-home"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between py-5 text-left"
+              <button
+                type="button"
+                onClick={() => go("/saved")}
+                className="flex items-center justify-between border-b border-line py-5 text-left"
               >
-                <span className="font-display text-2xl font-semibold text-white">Medium</span>
-                <ArrowUpRight className="h-4 w-4 text-white/40" />
-              </a>
-            </div>
-            <button
-              onClick={() => {
-                setMenuOpen(false);
-                onOpenStory?.();
-              }}
-              className="mt-6 flex items-center justify-center gap-2 rounded-full bg-[#c8ff4d] px-4 py-3.5 text-[11px] font-bold uppercase tracking-[0.16em] text-black"
+                <span className="font-display text-2xl font-semibold text-ink">Reading list</span>
+                <span aria-hidden="true" className="text-ink-faint">
+                  →
+                </span>
+              </button>
+            </nav>
+
+            <a
+              href="https://medium.com/the-ink-home"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-outline mt-8 w-full"
             >
-              Start reading
-              <ArrowUpRight className="h-4 w-4" />
+              Follow on Medium
+            </a>
+            <button type="button" onClick={() => go("/desk")} className="btn btn-accent mt-3 w-full">
+              Start writing
             </button>
           </motion.div>
         )}

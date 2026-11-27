@@ -1,24 +1,27 @@
-import React from "react";
 import { ArrowLeft } from "lucide-react";
+import { useNavigate } from "../router";
 
 export type LegalKind = "privacy" | "terms" | "editorial";
 
-const CONTENT: Record<LegalKind, { eyebrow: string; title: string; sections: Array<{ heading: string; body: string }> }> = {
+const CONTENT: Record<
+  LegalKind,
+  { eyebrow: string; title: string; sections: Array<{ heading: string; body: string }> }
+> = {
   privacy: {
     eyebrow: "Privacy",
     title: "Your reading stays yours.",
     sections: [
       {
         heading: "What we collect",
-        body: "The Ink Home does not require an account and does not sell personal data. We store your liked and saved stories in your browser's local storage only. Server logs may retain standard request metadata for security and reliability.",
+        body: "The Ink Home does not require an account and does not sell personal data. Stories you save or like, drafts you write at The Desk, and your theme preference are stored in this browser's local storage only. Server logs may retain standard request metadata for security and reliability.",
       },
       {
         heading: "Third parties",
-        body: "Stories are published on Medium and rendered from Medium's public RSS feed. Following a link to Medium is governed by Medium's own privacy policy. The Ink Assistant sends your message to our AI provider solely to answer your question.",
+        body: "Stories are published on Medium and rendered from Medium's public RSS feed. Following a link to Medium is governed by Medium's own privacy policy. When you ask the Ink Assistant a question, your message and the current page context are sent to our AI provider solely to generate a reply; drafts written at The Desk are never sent unless you explicitly press the feedback button.",
       },
       {
         heading: "Your choices",
-        body: "Clearing your browser storage removes any locally saved likes, bookmarks and preferences. For privacy questions, contact hello@theinkhome.com.",
+        body: "Clearing your browser's site data removes saved stories, likes, drafts and preferences. For privacy questions, contact hello@theinkhome.com.",
       },
     ],
   },
@@ -33,6 +36,10 @@ const CONTENT: Record<LegalKind, { eyebrow: string; title: string; sections: Arr
       {
         heading: "Content ownership",
         body: "Each essay remains the property of its author. The site design, code and branding belong to The Ink Home. Story text is sourced from the publication's Medium feed and may change or disappear if the original does.",
+      },
+      {
+        heading: "Drafts",
+        body: "Drafts written at The Desk belong to you. They are stored locally in your browser and are not hosted by us, so we cannot recover them if you clear your browser data. Export your work before you do.",
       },
       {
         heading: "No warranty",
@@ -53,38 +60,58 @@ const CONTENT: Record<LegalKind, { eyebrow: string; title: string; sections: Arr
         body: "We read every submission. Send drafts or pitches to hello@theinkhome.com with a short introduction and a link to your writing. We respond to work we can publish; expect a reply within two weeks.",
       },
       {
-        heading: "Corrections",
-        body: "If you spot an error, email hello@theinkhome.com with the story title and a description of the issue. Corrections are applied on Medium, the canonical home of every essay, and reflected here on the next sync.",
+        heading: "Edits",
+        body: "We edit lightly. The goal is to protect your voice, not replace it. You will always see and approve substantive changes before anything is published.",
+      },
+      {
+        heading: "Artificial intelligence",
+        body: "Essays must be your own words. The Ink Assistant on this site is a tool for readers and writers — it never publishes, never rewrites your work without asking, and its suggestions are always optional. Any AI-assisted work must be disclosed to the editors before submission.",
       },
     ],
   },
 };
 
-export default function LegalPage({ kind, onBack }: { kind: LegalKind; onBack: () => void }) {
+export default function LegalPage({ kind }: { kind: LegalKind }) {
+  const navigate = useNavigate();
   const { eyebrow, title, sections } = CONTENT[kind];
+
   return (
-    <section className="min-h-screen bg-[#08080a] text-white">
-      <div className="mx-auto max-w-3xl px-4 pb-28 pt-28 sm:px-8 sm:pt-36">
+    <section className="pb-28 pt-28 sm:pt-36">
+      <div className="shell measure-wide">
         <button
           type="button"
-          onClick={onBack}
-          className="group mb-10 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/40 transition-colors hover:text-white"
+          onClick={() => navigate("/about")}
+          className="group mb-10 flex items-center gap-2 text-[13px] text-ink-faint transition-colors hover:text-ink"
         >
-          <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" aria-hidden="true" />
+          <ArrowLeft
+            className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5"
+            aria-hidden="true"
+          />
           Back to the publication
         </button>
-        <div className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#c8ff4d]">{eyebrow}</div>
-        <h1 className="mt-4 font-display text-4xl font-black tracking-[-0.03em] text-white sm:text-5xl">{title}</h1>
-        <div className="mt-12 space-y-10">
+
+        <p className="eyebrow">{eyebrow}</p>
+        <h1 className="mt-4 font-display text-[clamp(2.25rem,5vw,3.5rem)] font-semibold leading-[1.02] tracking-[-0.035em] text-ink">
+          {title}
+        </h1>
+
+        <div className="mt-12 space-y-10 border-t border-line pt-10">
           {sections.map((section) => (
-            <div key={section.heading}>
-              <h2 className="font-display text-xl font-bold text-white">{section.heading}</h2>
-              <p className="mt-3 text-[15px] leading-relaxed text-white/55">{section.body}</p>
-            </div>
+            <section key={section.heading}>
+              <h2 className="font-display text-[1.3rem] font-semibold text-ink">{section.heading}</h2>
+              <p className="mt-3 text-[15.5px] leading-relaxed text-ink-soft">{section.body}</p>
+            </section>
           ))}
         </div>
-        <p className="mt-14 border-t border-white/10 pt-6 font-mono text-[10px] uppercase tracking-[0.16em] text-white/30">
-          Last updated November 2026 · hello@theinkhome.com
+
+        <p className="mt-14 border-t border-line pt-6 text-[13px] text-ink-faint">
+          Last updated November 2026 ·{" "}
+          <a
+            href="mailto:hello@theinkhome.com"
+            className="underline decoration-accent underline-offset-4 hover:text-ink"
+          >
+            hello@theinkhome.com
+          </a>
         </p>
       </div>
     </section>

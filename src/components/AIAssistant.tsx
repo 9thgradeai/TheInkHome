@@ -16,7 +16,7 @@ const QUICK_QUESTIONS = [
 interface AIAssistantProps {
   openByDefault?: boolean;
   storyContext?: Story | null;
-  pageContext?: "reading" | "browse" | "profile";
+  pageContext?: "reading" | "browse" | "profile" | "writing";
 }
 
 const WELCOME: AIMessage = {
@@ -54,16 +54,12 @@ export default function AIAssistant({
     return () => clearTimeout(timer);
   }, [open]);
 
+  // Only the full-screen mobile sheet needs to trap page scroll; the desktop
+  // side panel should leave the article readable behind it.
   useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && open) setOpen(false);
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [open]);
-
-  useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
+    if (!open) return;
+    if (!window.matchMedia("(max-width: 639px)").matches) return;
+    document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "";
     };
@@ -71,8 +67,7 @@ export default function AIAssistant({
 
   useEffect(() => {
     if (!open) return;
-    const panel = panelRef.current;
-    if (panel) panel.focus();
+    panelRef.current?.focus();
     return () => {
       launcherRef.current?.focus();
     };
@@ -132,18 +127,18 @@ export default function AIAssistant({
       {!open && (
         <button
           type="button"
+          ref={launcherRef}
           onClick={() => {
             setOpen(true);
             setError(null);
           }}
-          className="fixed bottom-4 right-4 z-[1000] flex h-14 w-14 items-center justify-center rounded-full bg-[#c8ff4d] text-black shadow-[0_8px_24px_-4px_rgba(200,255,77,0.4)] transition-all duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c8ff4d] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08080a] active:scale-95 sm:bottom-6 sm:right-6"
           aria-label="Open Ink Assistant"
-          ref={launcherRef}
+          className="group fixed bottom-4 right-4 z-[1000] flex h-14 w-14 items-center justify-center rounded-full bg-accent text-on-accent shadow-[var(--shadow-raise)] transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-paper active:scale-95 sm:bottom-6 sm:right-6"
         >
           <Bot className="h-6 w-6" aria-hidden="true" />
           <span
             aria-hidden="true"
-            className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#08080a] text-[10px] font-bold text-[#c8ff4d] border border-[#c8ff4d]/40"
+            className="absolute -right-0.5 -top-0.5 flex h-5 items-center rounded-full border border-line bg-ink px-1.5 text-[9px] font-bold uppercase tracking-[0.08em] text-on-ink"
           >
             AI
           </span>
@@ -159,7 +154,7 @@ export default function AIAssistant({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setOpen(false)}
-              className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-sm"
+              className="fixed inset-0 z-[999] bg-ink/40 backdrop-blur-sm"
               aria-label="Close assistant"
             />
             <motion.div
@@ -169,29 +164,29 @@ export default function AIAssistant({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 40, scale: 0.96 }}
               transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className="fixed inset-x-0 bottom-0 z-[1000] flex h-[92vh] max-h-[92vh] flex-col overflow-hidden rounded-t-3xl border-t border-white/10 bg-[#0b0c0f] shadow-[0_-8px_40px_-8px_rgba(0,0,0,0.8)] sm:inset-auto sm:bottom-6 sm:right-6 sm:h-[600px] sm:max-h-[85vh] sm:w-[400px] sm:rounded-3xl sm:border sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] md:h-[640px] md:w-[420px]"
+              className="fixed inset-x-0 bottom-0 z-[1000] flex h-[92vh] max-h-[92vh] flex-col overflow-hidden rounded-t-3xl border-t border-line bg-raised shadow-[var(--shadow-raise)] sm:inset-auto sm:bottom-6 sm:right-6 sm:h-[600px] sm:max-h-[85vh] sm:w-[400px] sm:rounded-3xl sm:border md:h-[640px] md:w-[420px]"
               role="dialog"
               aria-modal="true"
               aria-label="Ink Assistant"
             >
-              <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#0a0b0d]/80 backdrop-blur px-5 py-4">
+              <div className="flex shrink-0 items-center justify-between border-b border-line bg-sunken/80 px-5 py-4 backdrop-blur">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#c8ff4d]/10 text-[#c8ff4d]">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 text-accent-ink">
                     <Sparkles className="h-4 w-4" aria-hidden="true" />
                   </div>
                   <div>
-                    <div className="font-display text-sm font-bold text-white tracking-tight">
+                    <p className="font-display text-sm font-semibold tracking-tight text-ink">
                       Ink Assistant
-                    </div>
-                    <div className="text-[9px] text-[#c8ff4d]/80 uppercase tracking-[0.16em]">
+                    </p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent-ink">
                       The Ink Home AI
-                    </div>
+                    </p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl text-white/50 transition-colors hover:bg-white/10 hover:text-white active:scale-95"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl text-ink-faint transition-colors hover:bg-sunken hover:text-ink active:scale-95"
                   aria-label="Close assistant"
                 >
                   <X className="h-5 w-5" aria-hidden="true" />
@@ -206,7 +201,7 @@ export default function AIAssistant({
                 {error && (
                   <div
                     role="alert"
-                    className="mb-4 rounded-lg border border-amber-500/40 bg-amber-900/30 p-3 text-xs leading-relaxed text-amber-200"
+                    className="mb-4 rounded-xl border border-accent/50 bg-accent/10 p-3 text-[13px] leading-relaxed text-accent-ink"
                   >
                     {error}
                   </div>
@@ -220,7 +215,7 @@ export default function AIAssistant({
                         type="button"
                         onClick={() => void send(question)}
                         disabled={loading}
-                        className="rounded-full border border-white/15 bg-white/[0.03] px-3 py-2 text-xs text-white/70 transition-colors hover:border-white/30 hover:bg-white/[0.06] hover:text-white active:scale-95 disabled:opacity-50"
+                        className="rounded-full border border-line bg-sunken px-3 py-2 text-[12.5px] text-ink-soft transition-colors hover:border-line-strong hover:text-ink active:scale-95 disabled:opacity-50"
                       >
                         {question}
                       </button>
@@ -237,17 +232,19 @@ export default function AIAssistant({
                       transition={{ duration: 0.2 }}
                       className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                     >
-                      <div className={`max-w-[85%] ${message.role === "user" ? "text-right" : "text-left"}`}>
+                      <div
+                        className={`max-w-[85%] ${message.role === "user" ? "text-right" : "text-left"}`}
+                      >
                         <div
-                          className={`whitespace-pre-wrap inline-block rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                          className={`inline-block whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                             message.role === "user"
-                              ? "bg-[#c8ff4d] text-black rounded-br-md"
-                              : "border border-white/10 bg-white/[0.04] text-white/90 rounded-bl-md"
+                              ? "rounded-br-md bg-accent text-on-accent"
+                              : "rounded-bl-md border border-line bg-sunken text-ink"
                           }`}
                         >
                           {message.content}
                         </div>
-                        <span className="mt-1 block text-[9px] font-mono text-white/40">
+                        <span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
                           {message.role === "user" ? "You" : "Ink Assistant"}
                         </span>
                       </div>
@@ -256,12 +253,12 @@ export default function AIAssistant({
 
                   {loading && (
                     <div className="flex justify-start">
-                      <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                      <div className="flex items-center gap-2 rounded-2xl border border-line bg-sunken px-4 py-3">
                         <div
                           aria-hidden="true"
-                          className="h-4 w-4 rounded-full border-2 border-white/20 border-t-[#c8ff4d] animate-spin"
+                          className="h-4 w-4 animate-spin rounded-full border-2 border-ink/20 border-t-accent"
                         />
-                        <span className="text-xs text-white/50">Thinking…</span>
+                        <span className="text-[13px] text-ink-soft">Thinking…</span>
                       </div>
                     </div>
                   )}
@@ -275,9 +272,9 @@ export default function AIAssistant({
                   event.preventDefault();
                   void send(input);
                 }}
-                className="shrink-0 border-t border-white/10 bg-[#0a0b0d]/80 backdrop-blur px-4 py-3 sm:px-5 sm:py-4"
+                className="shrink-0 border-t border-line bg-sunken/80 px-4 py-3 backdrop-blur sm:px-5 sm:py-4"
               >
-                <div className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.03] px-3 py-2.5 transition-colors focus-within:border-[#c8ff4d]/50 focus-within:ring-1 focus-within:ring-[#c8ff4d]/30">
+                <div className="flex items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2.5 transition-colors focus-within:border-accent/60 focus-within:ring-1 focus-within:ring-accent/40">
                   <input
                     ref={inputRef}
                     value={input}
@@ -285,7 +282,7 @@ export default function AIAssistant({
                     onKeyDown={handleKeyDown}
                     placeholder="Ask about The Ink Home…"
                     aria-label="Message Ink Assistant"
-                    className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-white/40 focus:outline-none"
+                    className="min-w-0 flex-1 bg-transparent text-sm text-ink placeholder:text-ink-faint focus:outline-none"
                     disabled={loading}
                     autoComplete="off"
                     enterKeyHint="send"
@@ -293,13 +290,13 @@ export default function AIAssistant({
                   <button
                     type="submit"
                     disabled={!input.trim() || loading}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#c8ff4d] text-black transition-all hover:bg-[#d4ff6a] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-on-accent transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
                     aria-label="Send message"
                   >
                     <Send className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </div>
-                <p className="mt-2 text-center text-[9px] font-mono text-white/35">
+                <p className="mt-2 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
                   Powered by Groq · The Ink Home
                 </p>
               </form>

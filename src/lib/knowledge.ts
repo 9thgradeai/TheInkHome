@@ -52,7 +52,7 @@ export const INK_HOME_KB = {
 } as const;
 
 export interface AIContext {
-  page?: "reading" | "browse" | "profile";
+  page?: "reading" | "browse" | "profile" | "writing";
   storyTitle?: string;
   storyAuthor?: string;
 }
@@ -66,6 +66,9 @@ function describeContext(context?: AIContext): string {
   }
   if (context.page === "profile") {
     return "\nCurrent context: the reader is browsing writer profiles.";
+  }
+  if (context.page === "writing") {
+    return "\nCurrent context: the writer is drafting at The Desk and may want help shaping an essay.";
   }
   if (context.page === "browse") {
     return "\nCurrent context: the reader is browsing the publication homepage.";

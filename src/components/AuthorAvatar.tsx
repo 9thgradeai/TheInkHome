@@ -7,13 +7,26 @@ interface AuthorAvatarProps {
   className?: string;
 }
 
-const avatars = [
-  "linear-gradient(135deg, #c8ff4d, #4d7a1f)",
-  "linear-gradient(135deg, #a78bfa, #4c1d95)",
-  "linear-gradient(135deg, #fca5a5, #991b1b)",
-  "linear-gradient(135deg, #5eead4, #115e59)",
-  "linear-gradient(135deg, #fbbf24, #92400e)",
-  "linear-gradient(135deg, #f472b6, #831843)",
+/** Tinted monogram backgrounds — derived from the palette, not a rainbow. */
+const TINTS = [
+  { background: "var(--accent)", color: "var(--on-accent)" },
+  { background: "var(--ink)", color: "var(--on-ink)" },
+  {
+    background: "color-mix(in srgb, var(--accent) 42%, var(--raised))",
+    color: "var(--ink)",
+  },
+  {
+    background: "color-mix(in srgb, var(--ink) 16%, var(--raised))",
+    color: "var(--ink)",
+  },
+  {
+    background: "color-mix(in srgb, var(--accent) 70%, var(--ink))",
+    color: "var(--on-accent)",
+  },
+  {
+    background: "color-mix(in srgb, var(--ink) 34%, var(--raised))",
+    color: "var(--on-ink)",
+  },
 ];
 
 export default function AuthorAvatar({ name, src, className = "" }: AuthorAvatarProps) {
@@ -24,12 +37,13 @@ export default function AuthorAvatar({ name, src, className = "" }: AuthorAvatar
   }, [src]);
 
   if (!src || failed) {
+    const tint = TINTS[hashString(name) % TINTS.length];
     return (
       <div
-        className={`flex shrink-0 items-center justify-center font-display text-[clamp(10px,28%,28px)] font-bold tracking-wide text-black ${className}`}
-        style={{ background: avatars[hashString(name) % avatars.length] }}
-        aria-label={name}
+        className={`flex shrink-0 items-center justify-center rounded-full font-display font-semibold tracking-tight ${className}`}
+        style={tint}
         role="img"
+        aria-label={name}
       >
         {initials(name)}
       </div>
@@ -44,7 +58,7 @@ export default function AuthorAvatar({ name, src, className = "" }: AuthorAvatar
       loading="lazy"
       decoding="async"
       onError={() => setFailed(true)}
-      className={`shrink-0 object-cover ${className}`}
+      className={`shrink-0 rounded-full object-cover ${className}`}
     />
   );
 }

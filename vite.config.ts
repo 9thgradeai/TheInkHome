@@ -3,14 +3,6 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
 
-function registerSW() {
-  if (process.env.NODE_ENV === "production") {
-    return {
-      pages: ["/"],
-    };
-  }
-}
-
 export default defineConfig(() => {
   return {
     base: '/',
@@ -40,6 +32,5 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
-    ...registerSW(),
   };
 });

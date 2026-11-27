@@ -1,191 +1,172 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { motion } from "motion/react";
-import { ArrowDownRight, Feather, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Feather, Search, X } from "lucide-react";
 import { StoryCard } from "../components/StoryCard";
-import { ErrorState, EmptyState } from "../components/ui/States";
-import { Story } from "../types";
-import { stripHtml, topCategories } from "../lib/format";
+import { EmptyState, ErrorState } from "../components/ui/States";
+import Reveal from "../components/ui/Reveal";
+import type { Story } from "../types";
+import { searchStories, topicsFrom } from "../lib/search";
 
 interface StoriesPageProps {
   stories: Story[];
   loading: boolean;
   error?: boolean;
-  onOpen: (story: Story) => void;
   onRetry?: () => void;
 }
 
-const EASE = [0.16, 1, 0.3, 1] as const;
-
-function Reveal({
-  children,
-  delay = 0,
-  className = "",
-}: {
-  children: React.ReactNode;
-  delay?: number;
-  className?: string;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.7, delay, ease: EASE }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
+function readParams(): { query: string; tag: string } {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    query: params.get("q") || "",
+    tag: params.get("tag") || "All",
+  };
 }
 
-export default function StoriesPage({
-  stories,
-  loading,
-  error = false,
-  onOpen,
-  onRetry,
-}: StoriesPageProps) {
-  const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get("q") || "");
-  const [category, setCategory] = useState(() => new URLSearchParams(window.location.search).get("tag") || "All");
-  const [visible, setVisible] = useState(30);
+export default function StoriesPage({ stories, loading, error = false, onRetry }: StoriesPageProps) {
+  const [initial] = useState(readParams);
+  const [query, setQuery] = useState(initial.query);
+  const [category, setCategory] = useState(initial.tag);
+  const [visible, setVisible] = useState(24);
 
+  // Keep the URL shareable without triggering a navigation.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const next = new URLSearchParams();
-    const trimmed = query.trim();
-    if (trimmed) next.set("q", trimmed);
-    const tag = category;
-    if (tag && tag !== "All") next.set("tag", tag);
-    const qs = next.toString();
-    const target = qs ? `/stories?${qs}` : "/stories";
-    if (window.location.pathname + window.location.search !== target) {
-      window.history.replaceState(null, "", target);
-    }
+    const params = new URLSearchParams();
+    if (query.trim()) params.set("q", query.trim());
+    if (category && category !== "All") params.set("tag", category);
+    const qs = params.toString();
+    const target = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+    const current = `${window.location.pathname}${window.location.search}`;
+    if (current !== target) window.history.replaceState(null, "", target);
   }, [query, category]);
 
-  const categories = useMemo(() => topCategories(stories, 10), [stories]);
+  const topics = useMemo(() => topicsFrom(stories, 14), [stories]);
+  const matches = useMemo(() => searchStories(stories, query, { category }), [stories, query, category]);
 
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return stories.filter((story) => {
-      const matchesCategory =
-        category === "All" || story.categories.includes(category);
-      const matchesQuery =
-        !needle ||
-        story.title.toLowerCase().includes(needle) ||
-        story.author.toLowerCase().includes(needle) ||
-        stripHtml(story.description).toLowerCase().includes(needle);
-      return matchesCategory && matchesQuery;
-    });
-  }, [stories, category, query]);
+  useEffect(() => setVisible(24), [query, category]);
 
-  useEffect(() => {
-    setVisible(30);
-  }, [category, query]);
+  const reset = () => {
+    setQuery("");
+    setCategory("All");
+  };
+
+  const showSkeleton = loading && stories.length === 0;
+  const showError = error && stories.length === 0;
+  const showEmpty = !showSkeleton && !showError && matches.length === 0;
 
   return (
-    <section className="min-h-screen bg-[#08080a] text-white">
-      <div className="px-4 pb-24 pt-20 sm:px-8 sm:pb-32">
-        <div className="mx-auto max-w-7xl">
-          <div className="pt-32 sm:pt-36">
+    <section className="pb-24 pt-28 sm:pb-32 sm:pt-36">
+      <div className="shell">
+        <header className="border-b border-line pb-8">
+          <p className="eyebrow">
+            <Feather className="h-3.5 w-3.5" aria-hidden="true" /> The archive
+          </p>
+          <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.24em] text-[#c8ff4d]">
-                <Feather className="h-3 w-3" /> The archive
-              </div>
-              <h1 className="mt-4 max-w-2xl font-display text-4xl font-black tracking-[-0.03em] text-white sm:text-6xl">
+              <h1 className="max-w-[16ch] font-display text-[clamp(2.25rem,5.5vw,3.75rem)] font-semibold leading-[1] tracking-[-0.035em] text-ink">
                 Every story in one place.
               </h1>
-              <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/65">
-                The full archive. Filter by topic or search for a
-                writer or title. Open any story for the full reading experience.
+              <p className="mt-4 max-w-[52ch] text-[15.5px] leading-relaxed text-ink-soft">
+                The full archive, searchable across titles, bylines, topics and the text of every
+                essay itself.
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-2 font-mono text-[9px] uppercase tracking-[0.16em] text-white/50">
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${loading ? "animate-pulse bg-white/50" : "bg-[#c8ff4d]"}`}
-              />
-              {loading ? "Syncing…" : `${filtered.length} stories`}
-            </div>
+            <p aria-live="polite" className="shrink-0 text-[13px] text-ink-faint">
+              {showSkeleton ? "Syncing…" : `${matches.length} ${matches.length === 1 ? "story" : "stories"}`}
+            </p>
+          </div>
+        </header>
+
+        <div className="flex flex-col gap-4 border-b border-line py-5 lg:flex-row lg:items-center lg:justify-between">
+          <div role="group" aria-label="Filter by topic" className="flex flex-wrap gap-1.5">
+            {["All", ...topics].map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                className="chip"
+                aria-pressed={category === tag}
+                onClick={() => setCategory(tag)}
+              >
+                {tag}
+              </button>
+            ))}
           </div>
 
-          <div className="flex flex-col gap-4 border-y border-white/10 py-6 lg:flex-row lg:items-center lg:justify-between mb-10">
-            <div className="flex flex-wrap gap-1.5">
-              {["All", ...categories].map((tag) => {
-                const active = category === tag;
-                return (
-                  <button
-                    key={tag}
-                    onClick={() => setCategory(tag)}
-                    className={`rounded-full border px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.14em] transition-colors ${
-                      active
-                        ? "border-[#c8ff4d] bg-[#c8ff4d] text-black"
-                        : "border-white/10 text-white/45 hover:border-white/30 hover:text-white"
-                    }`}
-                  >
-                    {tag}
-                  </button>
-                );
-              })}
+          <label className="relative flex w-full shrink-0 items-center lg:w-80">
+            <span className="sr-only">Search the archive</span>
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-4 h-4 w-4 text-ink-faint"
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search titles, writers, topics, text"
+              className="field pl-11 pr-11"
+              autoComplete="off"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                className="absolute right-2.5 flex h-8 w-8 items-center justify-center rounded-full text-ink-faint transition-colors hover:text-ink"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </label>
+        </div>
+
+        {showSkeleton ? (
+          <div
+            aria-busy="true"
+            aria-live="polite"
+            className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3"
+          >
+            {Array.from({ length: 9 }).map((_, index) => (
+              <div key={index} className="space-y-3">
+                <div className="skeleton aspect-[16/10] w-full rounded-xl" />
+                <div className="skeleton h-3 w-24" />
+                <div className="skeleton h-6 w-4/5" />
+                <div className="skeleton h-4 w-full" />
+              </div>
+            ))}
+          </div>
+        ) : showError ? (
+          <ErrorState onRetry={onRetry} />
+        ) : showEmpty ? (
+          <EmptyState onAction={reset} />
+        ) : (
+          <>
+            <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+              {matches.slice(0, visible).map((match, index) => (
+                <Reveal key={match.story.slug} delay={Math.min((index % 3) * 0.05, 0.15)} className="h-full">
+                  <StoryCard story={match.story} />
+                </Reveal>
+              ))}
             </div>
-            <label className="flex w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.02] px-4 py-2.5 focus-within:border-white/30 lg:w-72">
-              <Search className="h-3.5 w-3.5 shrink-0 text-white/30" />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search stories or writers"
-                className="w-full bg-transparent text-[12px] text-white placeholder:text-white/40 focus:outline-none"
-              />
-              {query && (
-                <button
-                  onClick={() => setQuery("")}
-                  className="font-mono text-[9px] uppercase tracking-[0.1em] text-white/40 hover:text-white"
-                >
-                  Clear
+
+            <div className="mt-12 flex flex-col items-center gap-3">
+              <span className="text-[12.5px] text-ink-faint">
+                Showing {Math.min(visible, matches.length)} of {matches.length}
+              </span>
+              {visible < matches.length && (
+                <button type="button" onClick={() => setVisible((count) => count + 12)} className="btn btn-outline">
+                  Load more stories
                 </button>
               )}
-            </label>
-          </div>
+            </div>
+          </>
+        )}
 
-          {error && stories.length === 0 ? (
-            <ErrorState onRetry={onRetry} />
-          ) : filtered.length === 0 ? (
-            <EmptyState
-              onAction={() => {
-                setQuery("");
-                setCategory("All");
-              }}
-            />
-          ) : (
-            <>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filtered.slice(0, visible).map((story, index) => (
-                  <Reveal
-                    key={story.slug}
-                    delay={Math.min((index % 4) * 0.05, 0.2)}
-                    className="h-full"
-                  >
-                    <StoryCard story={story} onOpen={onOpen} />
-                  </Reveal>
-                ))}
-              </div>
-
-              <div className="mt-14 flex flex-col items-center gap-3">
-                <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/50">
-                  Showing {Math.min(visible, filtered.length)} of {filtered.length}
-                </span>
-                {visible < filtered.length && (
-                  <button
-                    onClick={() => setVisible((count) => count + 12)}
-                    className="group flex items-center gap-2 rounded-full border border-white/15 px-6 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-white/70 transition-colors hover:border-white/40 hover:text-white"
-                  >
-                    Load more stories
-                    <ArrowDownRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:translate-y-0.5" />
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+        {error && stories.length > 0 && (
+          <p role="status" className="mt-10 text-center text-[13px] text-ink-faint">
+            Live sync failed — showing the last saved archive.{" "}
+            <button type="button" onClick={onRetry} className="underline decoration-accent underline-offset-4 hover:text-ink">
+              Retry
+            </button>
+          </p>
+        )}
       </div>
     </section>
   );

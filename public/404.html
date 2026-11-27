@@ -1,18 +1,123 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-theme="paper">
   <head>
-    <meta charset="utf-8">
-    <title>The Ink Home</title>
-    <script>
-      (function () {
-        var path = window.location.pathname;
-        if (path && path !== '/' && path !== '') {
-          window.location.replace('/?redirect_to=' + encodeURIComponent(path));
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, follow" />
+    <title>Page not found | The Ink Home</title>
+    <meta
+      name="description"
+      content="This page is not part of The Ink Home. The archive is one click away."
+    />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --paper: #f7f2e7;
+        --ink: #191b21;
+        --ink-soft: #4d515a;
+        --ink-faint: #676b74;
+        --line: rgba(25, 27, 33, 0.13);
+        --accent: #d8a13c;
+        --on-accent: #1b1a14;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --paper: #14161c;
+          --ink: #f2ecdd;
+          --ink-soft: #b6b1a4;
+          --ink-faint: #8f8b80;
+          --line: rgba(242, 236, 221, 0.14);
+          --accent: #e8b555;
+          --on-accent: #171812;
         }
-      })();
-    </script>
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+        text-align: center;
+      }
+      main {
+        max-width: 34rem;
+      }
+      .eyebrow {
+        margin: 0;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      h1 {
+        margin: 14px 0 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(2rem, 6vw, 3rem);
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        line-height: 1.05;
+      }
+      p {
+        margin: 16px 0 0;
+        color: var(--ink-soft);
+        line-height: 1.65;
+      }
+      nav {
+        margin-top: 28px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: center;
+      }
+      a {
+        display: inline-block;
+        padding: 11px 22px;
+        border-radius: 999px;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        border: 1px solid var(--line);
+        color: var(--ink);
+      }
+      a.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--on-accent);
+      }
+      a:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+      }
+      .fine {
+        margin-top: 32px;
+        font-size: 12px;
+        color: var(--ink-faint);
+      }
+    </style>
   </head>
   <body>
-    <p>Redirecting to <a href="/">home page</a>...</p>
+    <main>
+      <p class="eyebrow">Not found</p>
+      <h1>This page has wandered off.</h1>
+      <p>
+        The address may be out of date, or the story may have moved back to Medium. The archive is
+        one click away.
+      </p>
+      <nav>
+        <a class="primary" href="/">Back to the front page</a>
+        <a href="/stories">Browse the archive</a>
+        <a href="https://medium.com/the-ink-home">Open on Medium</a>
+      </nav>
+      <p class="fine">The Ink Home · hello@theinkhome.com</p>
+    </main>
   </body>
 </html>

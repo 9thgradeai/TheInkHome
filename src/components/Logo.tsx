@@ -1,42 +1,45 @@
-import React from "react";
-import inkHomeLogo from "../../assets/The_Ink_Home.webp";
+import { useNavigate } from "../router";
 
 interface LogoProps {
-  className?: string;
   size?: number;
-  iconOnly?: boolean;
-  textColor?: string;
+  /** Hide the wordmark and show only the mark. */
+  compact?: boolean;
+  className?: string;
 }
 
-export const Logo: React.FC<LogoProps> = ({
-  className = "",
-  size = 40,
-  iconOnly = false,
-  textColor = "text-white",
-}) => {
+/** Brand lockup using the publication's own house mark. */
+export function Logo({ compact = false, className = "", size = 36 }: LogoProps) {
+  const navigate = useNavigate();
+
   return (
-    <div className={`flex items-center gap-3 select-none ${className}`}>
+    <button
+      type="button"
+      onClick={() => navigate("/")}
+      aria-label="The Ink Home — home"
+      className={`group flex items-center gap-3 text-left ${className}`}
+    >
       <img
-        src={inkHomeLogo}
-        alt="The Ink Home Logo"
+        src="/assets/The_Ink_Home.webp"
+        alt=""
+        aria-hidden="true"
         width={size}
         height={size}
-        style={{ width: size, height: size }}
-        className="object-contain max-w-full max-h-full flex-shrink-0 transition-all duration-300 drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
         decoding="async"
+        className="h-9 w-9 shrink-0 rounded-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+        style={{ width: size, height: size }}
       />
-
-      {/* Optional typography lockup - condensed elegant display sans/serif pairing */}
-      {!iconOnly && (
-        <div className="flex flex-col items-start leading-none">
-          <span className={`font-display text-base font-extrabold tracking-widest uppercase ${textColor}`}>
+      {!compact && (
+        <span className="flex flex-col leading-none">
+          <span className="font-display text-[17px] font-semibold tracking-[-0.01em] text-ink">
             The Ink Home
           </span>
-          <span className="text-[9px] font-mono tracking-[0.25em] text-[var(--atmo-text)] uppercase mt-0.5">
-            Medium Publication
+          <span className="mt-[3px] text-[9px] font-semibold uppercase tracking-[0.2em] text-ink-faint">
+            A PUBLICATION
           </span>
-        </div>
+        </span>
       )}
-    </div>
+    </button>
   );
-};
+}
+
+export default Logo;

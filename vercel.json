@@ -15,12 +15,20 @@
     },
     "api/health.ts": {
       "maxDuration": 10
+    },
+    "api/sitemap.ts": {
+      "maxDuration": 30,
+      "includeFiles": "src/**"
     }
   },
   "routes": [
     {
       "src": "/api/(.*)",
       "dest": "/api/$1"
+    },
+    {
+      "src": "/sitemap.xml",
+      "dest": "/api/sitemap"
     },
     {
       "src": "/assets/(.*)",
