@@ -46,7 +46,7 @@ export default function StoryConstellation({ stories }: { stories: Story[] }) {
       duration: 13 + rand() * 9,
       size: 10 + rand() * 7,
       drift: (rand() - 0.5) * 18,
-      opacity: 0.22 + rand() * 0.3,
+      opacity: 0.45 + rand() * 0.45,
       rotation: (rand() - 0.5) * 12,
     }));
   }, [words]);
@@ -101,6 +101,7 @@ export default function StoryConstellation({ stories }: { stories: Story[] }) {
               WebkitBackgroundClip: "text",
               backgroundClip: "text",
               color: "transparent",
+              textShadow: "0 0 18px color-mix(in srgb, var(--accent) 35%, transparent)",
             }}
           >
             {field.word}
