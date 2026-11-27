@@ -51,6 +51,7 @@ export default function SiteFooter() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-outline"
+                style={{ color: "var(--ink)" }}
               >
                 Follow on Medium
               </a>
