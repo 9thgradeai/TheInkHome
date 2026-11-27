@@ -46,7 +46,7 @@ export default function StoryConstellation({ stories }: { stories: Story[] }) {
       duration: 13 + rand() * 9,
       size: 10 + rand() * 7,
       drift: (rand() - 0.5) * 18,
-      opacity: 0.45 + rand() * 0.45,
+      opacity: 0.65 + rand() * 0.3,
       rotation: (rand() - 0.5) * 12,
     }));
   }, [words]);
@@ -99,7 +99,7 @@ export default function StoryConstellation({ stories }: { stories: Story[] }) {
               ["--rot" as string]: `${field.rotation}deg`,
               ["--opa" as string]: field.opacity,
               color,
-              textShadow: "0 0 14px color-mix(in srgb, currentColor 25%, transparent)",
+              textShadow: "0 0 22px color-mix(in srgb, currentColor 45%, transparent), 0 2px 8px color-mix(in srgb, var(--paper) 60%, transparent)",
             }}
           >
             {field.word}
