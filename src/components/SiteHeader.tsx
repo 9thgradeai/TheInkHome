@@ -151,7 +151,8 @@ export default function SiteHeader() {
                 event.preventDefault();
                 go("/stories");
               }}
-              className="btn btn-solid hidden md:inline-flex"
+              className="btn btn-solid hidden whitespace-nowrap md:inline-flex"
+              style={{ color: "var(--on-ink)" }}
             >
               Read the latest
             </a>
