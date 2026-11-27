@@ -1,0 +1,27 @@
+# The Ink Home
+
+> An independent publication of essays on technology, culture, creativity, relationships and the quiet parts of being human.
+
+The Ink Home (https://theinkhome.live) publishes original essays, stories, and reflections by emerging and established writers. Content is published on Medium and mirrored on this domain.
+
+## Key pages
+- Home: https://theinkhome.live/
+- Stories archive: https://theinkhome.live/stories
+- Writers: https://theinkhome.live/writers
+- About: https://theinkhome.live/about
+- The Desk (drafting tool): https://theinkhome.live/desk
+- Submission guidelines: https://theinkhome.live/about
+- Editorial policy: https://theinkhome.live/editorial
+- Privacy: https://theinkhome.live/privacy
+- Terms: https://theinkhome.live/terms
+
+## Sitemap
+https://theinkhome.live/sitemap.xml
+
+## Contact
+hello@theinkhome.com
+
+## Notes
+- AI-generated submissions are not accepted without disclosure.
+- Stories are authored by real contributors.
+- No fabricated statistics or testimonials.

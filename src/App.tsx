@@ -156,17 +156,28 @@ function AppShell() {
         image: activeStory.cover || SITE_META.defaultImage,
         type: "article",
         article: { publishedTime: activeStory.pubDate, author: activeStory.author },
-        jsonLd: {
-          "@context": "https://schema.org",
-          "@type": "Article",
-          headline: activeStory.title,
-          description: activeStory.description,
-          image: activeStory.cover || SITE_META.defaultImage,
-          datePublished: activeStory.pubDate,
-          author: { "@type": "Person", name: activeStory.author },
-          publisher: { "@type": "Organization", name: SITE_META.siteName },
-          mainEntityOfPage: `${SITE_META.siteUrl}/story/${encodeURIComponent(activeStory.slug)}`,
-        },
+        jsonLd: [
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            headline: activeStory.title,
+            description: activeStory.description,
+            image: activeStory.cover || SITE_META.defaultImage,
+            datePublished: activeStory.pubDate,
+            author: { "@type": "Person", name: activeStory.author },
+            publisher: { "@type": "Organization", name: SITE_META.siteName },
+            mainEntityOfPage: `${SITE_META.siteUrl}/story/${encodeURIComponent(activeStory.slug)}`,
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Home", item: SITE_META.siteUrl },
+              { "@type": "ListItem", position: 2, name: "Stories", item: `${SITE_META.siteUrl}/stories` },
+              { "@type": "ListItem", position: 3, name: activeStory.title, item: `${SITE_META.siteUrl}/story/${encodeURIComponent(activeStory.slug)}` },
+            ],
+          },
+        ],
       });
       return;
     }

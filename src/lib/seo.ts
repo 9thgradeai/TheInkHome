@@ -106,6 +106,19 @@ export function applyHomeMeta(): void {
     description:
       "An independent publication of thoughtful essays on technology, culture, creativity, relationships and the quiet parts of being human.",
     path: "/",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: SITE_NAME,
+      url: SITE_URL,
+      description:
+        "An independent publication of thoughtful essays on technology, culture, creativity, relationships and the quiet parts of being human.",
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${SITE_URL}/stories?q={search_term_string}`,
+        "query-input": "required name=search_term_string",
+      },
+    },
   });
 }
 

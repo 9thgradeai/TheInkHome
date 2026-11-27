@@ -197,7 +197,8 @@ async function serveSPAWithSEO(
   let type: "website" | "article";
   let canonical: string;
   let robots: string | undefined;
-  let jsonLd: Record<string, unknown> | undefined;
+  let jsonLd: unknown;
+  let extraJsonLd: unknown;
 
   if (story) {
     title = `${story.title} — The Ink Home`;
@@ -208,6 +209,15 @@ async function serveSPAWithSEO(
     image = story.cover || DEFAULT_IMAGE;
     type = "article";
     canonical = `${SITE_URL}/story/${story.slug}`;
+    extraJsonLd = {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+        { "@type": "ListItem", position: 2, name: "Stories", item: `${SITE_URL}/stories` },
+        { "@type": "ListItem", position: 3, name: title, item: canonical },
+      ],
+    };
     jsonLd = {
       "@context": "https://schema.org",
       "@type": "Article",
@@ -273,6 +283,7 @@ async function serveSPAWithSEO(
     ${story ? `<meta property="article:published_time" content="${escapeHtml(story.pubDate)}" />` : ""}
     ${story ? `<meta name="author" content="${escapeHtml(story.author)}" />` : ""}
     ${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>` : ""}
+    ${extraJsonLd ? `<script type="application/ld+json">${JSON.stringify(extraJsonLd)}</script>` : ""}
   `;
 
   const html = template.replace(/<title>[\s\S]*?<\/title>/i, metaTags);
